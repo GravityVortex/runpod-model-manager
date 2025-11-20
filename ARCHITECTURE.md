@@ -151,9 +151,12 @@ class ProjectLoader:
 
 1. 在 `projects/` 创建 `new_project.py`
 2. 继承 `BaseProject`，实现抽象方法
-3. 在 `ProjectLoader` 注册
+3. 在 `projects/loader.py` 的 `ProjectLoader` 注册
 
 ```python
+from .base import BaseProject
+from downloaders import DownloaderFactory
+
 class NewProject(BaseProject):
     @property
     def name(self):
@@ -186,11 +189,10 @@ class CustomDownloader(BaseDownloader):
         ...
 ```
 
-2. 在工厂注册：
+2. 在工厂注册（修改 `downloaders/factory.py`）：
 
 ```python
-# model_downloader.py
-from downloaders.custom_downloader import CustomDownloader
+from .custom_downloader import CustomDownloader
 
 class DownloaderFactory:
     _downloaders = {

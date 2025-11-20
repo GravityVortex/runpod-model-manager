@@ -7,17 +7,20 @@
 采用**插件化架构**，每个项目一个配置文件，上层统一管理：
 
 ```
-├── base_project.py          # 项目抽象基类
-├── model_downloader.py      # 下载器工厂
+├── download_models.py       # 主入口（下载调度器）
+├── modelscope_patch.py      # Python 3.10 补丁
 ├── downloaders/             # 下载器模块
+│   ├── __init__.py
 │   ├── base_downloader.py         # 下载器基类
+│   ├── factory.py                 # 下载器工厂
 │   ├── modelscope_downloader.py   # ModelScope 下载器
 │   └── huggingface_downloader.py  # HuggingFace 下载器
-├── projects/                # 项目配置目录
-│   ├── speaker_diarization.py     # 现有项目
-│   └── your_project.py            # 添加更多...
-├── project_loader.py        # 项目加载器
-└── download_models.py       # 下载调度器
+└── projects/                # 项目配置模块
+    ├── __init__.py
+    ├── base.py                    # 项目基类
+    ├── loader.py                  # 项目加载器
+    ├── speaker_diarization.py     # 现有项目
+    └── your_project.py            # 添加更多...
 ```
 
 ## 🚀 快速开始
@@ -27,8 +30,8 @@
 在 `projects/` 目录创建新文件，例如 `my_project.py`：
 
 ```python
-from base_project import BaseProject
-from model_downloader import DownloaderFactory
+from .base import BaseProject
+from downloaders import DownloaderFactory
 
 class MyProject(BaseProject):
     @property
@@ -72,10 +75,10 @@ class MyProject(BaseProject):
 
 ### 2. 注册项目
 
-编辑 `project_loader.py`：
+编辑 `projects/loader.py`：
 
 ```python
-from projects.my_project import MyProject
+from .my_project import MyProject
 
 class ProjectLoader:
     PROJECTS = [
@@ -120,13 +123,12 @@ python download_models.py model1 model2 model3
 
 | 文件 | 说明 | 是否需要修改 |
 |------|------|--------------|
-| `base_project.py` | 项目抽象基类 | ❌ 不需要 |
-| `model_downloader.py` | 下载器工厂 | ⚠️ 添加新下载源时 |
-| `downloaders/` | 下载器模块 | ⚠️ 添加新下载源时 |
-| `project_loader.py` | 项目加载器 | ✅ 注册新项目 |
-| `projects/*.py` | 各项目配置 | ✅ 添加新项目 |
-| `download_models.py` | 下载调度器 | ❌ 不需要 |
+| `download_models.py` | 主入口（下载调度器）| ❌ 不需要 |
 | `modelscope_patch.py` | Python 3.10 补丁 | ❌ 不需要 |
+| `downloaders/` | 下载器模块 | ⚠️ 添加新下载源时 |
+| `projects/base.py` | 项目抽象基类 | ❌ 不需要 |
+| `projects/loader.py` | 项目加载器 | ✅ 注册新项目 |
+| `projects/*.py` | 各项目配置 | ✅ 添加新项目 |
 
 ## 💡 特性
 
@@ -142,12 +144,12 @@ python download_models.py model1 model2 model3
 ### 查看项目摘要
 
 ```bash
-python project_loader.py
+python -m projects.loader
 ```
 
 ### 只下载特定项目
 
-修改 `project_loader.py` 临时注释掉不需要的项目。
+修改 `projects/loader.py` 临时注释掉不需要的项目。
 
 ### 添加自定义下载源
 
@@ -171,10 +173,10 @@ class CustomDownloader(BaseDownloader):
             return False
 ```
 
-**2. 在工厂类注册**（修改 `model_downloader.py`）：
+**2. 在工厂类注册**（修改 `downloaders/factory.py`）：
 
 ```python
-from downloaders.custom_downloader import CustomDownloader
+from .custom_downloader import CustomDownloader
 
 class DownloaderFactory:
     _downloaders = {

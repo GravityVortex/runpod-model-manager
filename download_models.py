@@ -119,7 +119,7 @@ def download_to_volume(model_ids, source='auto'):
 
 def download_from_projects():
     """从项目配置下载所有模型（调度模式）"""
-    from project_loader import ProjectLoader
+    from projects.loader import ProjectLoader
     
     # 打印项目摘要
     ProjectLoader.print_summary()

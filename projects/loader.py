@@ -3,10 +3,10 @@
 项目加载器 - 统一管理所有项目配置
 """
 from typing import List
-from base_project import BaseProject
+from .base import BaseProject
 
 # 导入所有启用的项目
-from projects.speaker_diarization import SpeakerDiarizationProject
+from .speaker_diarization import SpeakerDiarizationProject
 
 
 class ProjectLoader:

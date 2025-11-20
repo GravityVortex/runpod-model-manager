@@ -3,9 +3,9 @@
 下载器工厂 - 用于创建和获取下载器实例
 """
 from typing import Dict, Type
-from downloaders.base_downloader import BaseDownloader
-from downloaders.modelscope_downloader import ModelScopeDownloader
-from downloaders.huggingface_downloader import HuggingFaceDownloader
+from .base_downloader import BaseDownloader
+from .modelscope_downloader import ModelScopeDownloader
+from .huggingface_downloader import HuggingFaceDownloader
 
 
 class DownloaderFactory:
