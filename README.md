@@ -2,6 +2,8 @@
 
 集中管理所有项目的模型，一次性下载到 RunPod Volume。
 
+> 📖 **[查看完整部署指南](./DEPLOYMENT.md)** - 详细的 RunPod 部署教程
+
 ## 🎯 设计理念
 
 采用**插件化架构**，每个项目一个配置文件，上层统一管理：
@@ -87,22 +89,34 @@ class ProjectLoader:
     ]
 ```
 
-### 3. 在 RunPod 运行
+### 3. 在 RunPod 部署
 
-**创建 Pod:**
-- GPU: 任意
-- Image: `pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime`
-- Volume: 挂载到 `/workspace`
+**简要步骤**：
 
-**在 Pod Terminal:**
+1. **创建 Network Volume**（持久存储）
+   - Storage 页面 → New Volume
+   - 大小：50GB+（根据模型数量）
+   - 区域：选择常用区域
 
-```bash
-# 安装依赖
-pip install modelscope torch huggingface-hub
+2. **创建临时下载 Pod**
+   - 选择便宜的 GPU/CPU Pod
+   - 挂载 Volume 到 `/workspace`
+   - 进入 Terminal
 
-# 上传项目文件，运行
-python download_models.py --all
-```
+3. **下载模型**
+   ```bash
+   cd /workspace
+   git clone https://github.com/GravityVortex/runpod-model-manager.git
+   cd runpod-model-manager
+   pip install modelscope huggingface-hub
+   python download_models.py --all
+   ```
+
+4. **完成后删除 Pod**（模型已保存在 Volume）
+
+5. **在实际项目 Pod 中挂载同一个 Volume 即可使用模型**
+
+> 📖 **详细步骤请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)**
 
 ### 4. 手动模式（可选）
 
