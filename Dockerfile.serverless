@@ -1,0 +1,41 @@
+# Serverless Endpoint Dockerfile
+# 将所有配置的模型打包进镜像，用于 RunPod Serverless
+
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 依赖
+COPY requirements.txt .
+RUN pip install -r requirements.txt runpod -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 复制项目文件
+COPY modelscope_patch.py .
+COPY download_models.py .
+COPY downloaders/ ./downloaders/
+COPY projects/ ./projects/
+
+# === 关键：构建时下载所有模型到镜像 /models 目录 ===
+ENV MODELSCOPE_CACHE=/models
+ENV TRANSFORMERS_CACHE=/models
+ENV HF_HOME=/models
+
+# 执行下载（这会在构建时运行）
+RUN python download_models.py --all
+
+# 验证模型已下载并显示大小
+RUN echo "=== 模型下载完成 ===" && \
+    du -sh /models && \
+    echo "=== 模型列表 ===" && \
+    find /models -maxdepth 3 -type d
+
+# 复制 Serverless handler
+COPY handler.py .
+
+# RunPod Serverless 入口点
+CMD ["python", "-u", "handler.py"]

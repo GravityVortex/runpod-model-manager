@@ -1,8 +1,15 @@
 # RunPod 模型管理中心
 
-集中管理所有项目的模型，一次性下载到 RunPod Volume。
+集中管理所有项目的模型，支持 Pod 和 Serverless 两种部署方式。
 
-> 📖 **[查看完整部署指南](./DEPLOYMENT.md)** - 详细的 RunPod 部署教程
+## 📚 部署指南
+
+- 📖 **[Pod 部署指南](./DEPLOYMENT.md)** - 持续运行的服务（挂载 Volume）
+- 🚀 **[Serverless 部署指南](./SERVERLESS_DEPLOYMENT.md)** - 按需运行的 API（打包镜像）
+
+**选择指南**：
+- **Serverless**：间歇性请求、低成本、按秒计费 → 推荐用于 API 服务
+- **Pod**：24/7 运行、开发调试、需要持久化 → 推荐用于开发环境
 
 ## 🎯 设计理念
 
@@ -26,6 +33,32 @@
 ```
 
 ## 🚀 快速开始
+
+### Serverless 快速部署（推荐）
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/GravityVortex/runpod-model-manager.git
+cd runpod-model-manager
+
+# 2. 配置你的模型（编辑 projects/ 下的文件）
+
+# 3. 构建并推送镜像（替换 your-dockerhub-username）
+./build-serverless.sh your-dockerhub-username
+
+# 4. 在 RunPod Serverless 创建 Endpoint，使用刚推送的镜像
+
+# 5. 调用 API
+curl -X POST https://api.runpod.ai/v2/{endpoint-id}/runsync \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{"input": {"task": "vad", "audio_url": "..."}}'
+```
+
+> 详见 [SERVERLESS_DEPLOYMENT.md](./SERVERLESS_DEPLOYMENT.md)
+
+---
+
+### Pod 开发模式
 
 ### 1. 添加你的项目配置
 

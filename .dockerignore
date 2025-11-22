@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.env
+.venv
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Documentation (optional, 如果想减小镜像可以排除)
+# README.md
+# DEPLOYMENT.md
+# SERVERLESS_DEPLOYMENT.md
+# ARCHITECTURE.md
+
+# Build scripts (在镜像内部不需要)
+build-serverless.sh
+.dockerignore
+
+# macOS
+.DS_Store
