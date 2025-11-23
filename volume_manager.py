@@ -151,10 +151,17 @@ class VolumeManager:
         print(f"\n📦 待安装依赖: {len(to_install)}")
         for dep in to_install:
             print(f"  - {dep}")
+        
+        # 使用当前 Python 解释器的 pip，确保版本匹配
+        import sys
+        python_exe = sys.executable
+        python_version_actual = f"{sys.version_info.major}.{sys.version_info.minor}"
+        print(f"\n🐍 使用 Python: {python_exe} ({python_version_actual})")
+        print(f"📂 安装目录: {deps_path}")
         print()
         
         cmd = [
-            'pip', 'install',
+            sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
             f'--target={deps_path}',
         ]
@@ -169,11 +176,32 @@ class VolumeManager:
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
+            # 验证安装的 Python 版本
+            print(f"\n🔍 验证安装...")
+            # 检查是否有编译的扩展模块
+            so_files = list(deps_path.rglob('*.so'))
+            if so_files:
+                # 检查第一个 .so 文件的 Python 版本标签
+                first_so = so_files[0].name
+                print(f"   检查扩展模块: {first_so}")
+                if f'cpython-{sys.version_info.major}{sys.version_info.minor}' in first_so:
+                    print(f"   ✓ 扩展模块版本匹配: cp{sys.version_info.major}{sys.version_info.minor}")
+                elif 'cpython' in first_so:
+                    import re
+                    match = re.search(r'cpython-(\d+)(\d+)', first_so)
+                    if match:
+                        found_ver = f"{match.group(1)}.{match.group(2)}"
+                        print(f"   ⚠️  警告：扩展模块版本不匹配！")
+                        print(f"      期望: cp{sys.version_info.major}{sys.version_info.minor}")
+                        print(f"      实际: cp{match.group(1)}{match.group(2)}")
+            
             # 更新元数据
             metadata = self._load_metadata(project_name)
+            metadata['python_version'] = python_version_actual  # 记录实际使用的版本
             for dep in to_install:
                 metadata['dependencies'][dep] = {
-                    'installed_at': datetime.now().isoformat()
+                    'installed_at': datetime.now().isoformat(),
+                    'python_version': python_version_actual
                 }
             # 移除已删除的依赖记录
             for dep in removed:
