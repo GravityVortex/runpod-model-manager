@@ -1,72 +1,119 @@
-# RunPod 模型管理中心
+# RunPod Model Manager
 
-集中管理所有项目的模型，支持 Pod 和 Serverless 两种部署方式。
+**统一管理 RunPod Volume 中的模型和依赖**
 
-## 📚 部署指南
+在 RunPod Network Volume 中管理多个项目的 Python 依赖和 AI 模型，支持增量更新、版本隔离。
 
-- 📖 **[Pod 部署指南](./DEPLOYMENT.md)** - 持续运行的服务（挂载 Volume）
-- 🚀 **[Serverless 部署指南](./SERVERLESS_DEPLOYMENT.md)** - 按需运行的 API（打包镜像）
+## 特性
 
-**选择指南**：
-- **Serverless**：间歇性请求、低成本、按秒计费 → 推荐用于 API 服务
-- **Pod**：24/7 运行、开发调试、需要持久化 → 推荐用于开发环境
+- ✅ **统一 CLI**：单一入口管理所有操作
+- ✅ **增量更新**：只安装/下载新增的内容
+- ✅ **版本隔离**：按 Python 版本隔离依赖
+- ✅ **自动安装**：自动检测版本并安装需要的 Python
+- ✅ **独立项目**：每个项目一个目录，清晰管理
+- ✅ **多源支持**：ModelScope、HuggingFace 等
 
-## 🎯 设计理念
-
-采用**插件化架构**，每个项目一个配置文件，上层统一管理：
+## 目录结构
 
 ```
-├── download_models.py       # 主入口（下载调度器）
-├── modelscope_patch.py      # Python 3.10 补丁
+runpod-model-manager/
+├── volume_cli.py            # 统一 CLI 入口
+├── volume_manager.py        # Volume 增量管理
+├── commands/                # CLI 命令模块
 ├── downloaders/             # 下载器模块
-│   ├── __init__.py
-│   ├── base_downloader.py         # 下载器基类
-│   ├── factory.py                 # 下载器工厂
-│   ├── modelscope_downloader.py   # ModelScope 下载器
-│   └── huggingface_downloader.py  # HuggingFace 下载器
-└── projects/                # 项目配置模块
-    ├── __init__.py
-    ├── base.py                    # 项目基类
-    ├── loader.py                  # 项目加载器
-    ├── speaker_diarization.py     # 现有项目
-    └── your_project.py            # 添加更多...
+└── projects/                # 项目配置
+    ├── speaker_diarization/ # 示例项目
+    │   ├── config.py
+    │   └── requirements.txt
+    └── your_project/        # 添加更多项目
 ```
 
 ## 🚀 快速开始
 
-### Serverless 快速部署（推荐）
+### 统一 CLI 工具（推荐⭐）
+
+使用统一的 CLI 工具管理依赖和模型：
 
 ```bash
-# 1. 克隆项目
+# === 在临时 Pod 的 Web Terminal 中 ===
+
+# 1. Clone 项目
+cd /workspace
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 2. 配置你的模型（编辑 projects/ 下的文件）
+# 2. 一键设置项目（依赖+模型）
+python3 volume_cli.py setup --project speaker-diarization
 
-# 3. 构建并推送镜像（替换 your-dockerhub-username）
-./build-serverless.sh your-dockerhub-username
+# 或分步执行：
 
-# 4. 在 RunPod Serverless 创建 Endpoint，使用刚推送的镜像
+# 安装依赖
+python3 volume_cli.py deps install --project speaker-diarization
 
-# 5. 调用 API
-curl -X POST https://api.runpod.ai/v2/{endpoint-id}/runsync \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{"input": {"task": "vad", "audio_url": "..."}}'
+# 下载模型
+python3 volume_cli.py models download --project speaker-diarization
+
+# 查看状态
+python3 volume_cli.py status --project speaker-diarization
 ```
 
-> 详见 [SERVERLESS_DEPLOYMENT.md](./SERVERLESS_DEPLOYMENT.md)
+**CLI 命令参考**：
+
+| 命令 | 说明 |
+|------|------|
+| `setup` | 一键设置（依赖+模型） |
+| `status` | 查看 Volume 状态 |
+| `deps install` | 安装依赖（增量） |
+| `deps check` | 检查依赖完整性 |
+| `models download` | 下载模型（增量） |
+| `models verify` | 验证模型完整性 |
+| `clean` | 清理项目数据 |
 
 ---
 
-### Pod 开发模式
+## 使用流程
+
+### 1. 在临时 Pod 中设置
+
+```bash
+# 创建临时 Pod，挂载 Volume 到 /workspace
+
+cd /workspace
+git clone https://github.com/GravityVortex/runpod-model-manager.git
+cd runpod-model-manager
+
+# 一键设置项目
+python3 volume_cli.py setup --project speaker-diarization
+
+# 完成后删除 Pod
+```
+
+### 2. 在项目中使用
+
+```dockerfile
+# Dockerfile.serverless
+ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH \
+    MODELSCOPE_CACHE=/runpod-volume/models
+```
+
+---
+
+## 添加项目
 
 ### 1. 添加你的项目配置
 
-在 `projects/` 目录创建新文件，例如 `my_project.py`：
+**每个项目独立一个目录**：
+
+```bash
+# 创建项目目录
+mkdir -p projects/my_project
+```
+
+**创建配置文件** (`projects/my_project/config.py`)：
 
 ```python
-from .base import BaseProject
-from downloaders import DownloaderFactory
+from pathlib import Path
+from ..base import BaseProject
 
 class MyProject(BaseProject):
     @property
@@ -74,39 +121,44 @@ class MyProject(BaseProject):
         return "my-project"
     
     @property
+    def python_version(self):
+        return '3.10'
+    
+    @property
+    def requirements_file(self):
+        """当前目录的 requirements.txt"""
+        return str(Path(__file__).parent / 'requirements.txt')
+    
+    @property
     def models(self):
         return {
-            'modelscope': [
-                "org/model-1",
-                "org/model-2",
-            ],
-            'huggingface': [
-                "org/model-3",
-            ]
+            'modelscope': ['org/model-1'],
+            'huggingface': ['org/model-2'],
         }
     
     def download_models(self, model_cache: str):
-        """实现下载逻辑"""
-        # 统计信息
-        success = 0
-        skipped = 0
-        failed = []
-        
-        for model_id, source in self.get_all_models():
-            # 获取下载器
-            downloader = DownloaderFactory.get_downloader(source, model_cache)
-            
-            # 检查是否已存在
-            if downloader.check_model_exists(model_id):
-                skipped += 1
-                continue
-            
-            # 下载
-            if downloader.download(model_id):
-                success += 1
-            else:
-                failed.append(model_id)
+        # 复制 speaker_diarization 的实现即可
+        ...
 ```
+
+**创建依赖文件** (`projects/my_project/requirements.txt`)：
+
+```txt
+# 你的项目依赖
+transformers==4.35.0
+torch==2.1.0
+fastapi
+runpod
+```
+
+**创建导出文件** (`projects/my_project/__init__.py`)：
+
+```python
+from .config import MyProject
+__all__ = ['MyProject']
+```
+
+> 📖 **详细添加指南**：[projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
 
 ### 2. 注册项目
 
@@ -115,131 +167,33 @@ class MyProject(BaseProject):
 ```python
 from .my_project import MyProject
 
-class ProjectLoader:
-    PROJECTS = [
-        SpeakerDiarizationProject(),
-        MyProject(),  # 添加这行
-    ]
+PROJECTS = [
+    SpeakerDiarizationProject(),
+    MyProject(),
+]
 ```
 
-### 3. 在 RunPod 部署
+---
 
-**简要步骤**：
+## 文档
 
-1. **创建 Network Volume**（持久存储）
-   - Storage 页面 → New Volume
-   - 大小：50GB+（根据模型数量）
-   - 区域：选择常用区域
+- [CLI_GUIDE.md](./CLI_GUIDE.md) - 完整 CLI 使用指南
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - 项目结构说明
+- [PYTHON_VERSION_HANDLING.md](./PYTHON_VERSION_HANDLING.md) - Python 版本检测和处理
+- [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md) - 添加项目详细指南
 
-2. **创建临时下载 Pod**
-   - 选择便宜的 GPU/CPU Pod
-   - 挂载 Volume 到 `/workspace`
-   - 进入 Terminal
+---
 
-3. **下载模型**
-   ```bash
-   cd /workspace
-   git clone https://github.com/GravityVortex/runpod-model-manager.git
-   cd runpod-model-manager
-   pip install modelscope huggingface-hub
-   python download_models.py --all
-   ```
+## Volume 结构
 
-4. **完成后删除 Pod**（模型已保存在 Volume）
-
-5. **在实际项目 Pod 中挂载同一个 Volume 即可使用模型**
-
-> 📖 **详细步骤请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)**
-
-### 4. 手动模式（可选）
-
-也支持不配置项目，直接下载：
-
-```bash
-# 下载单个模型
-python download_models.py org/model-name
-
-# 指定源
-python download_models.py --source huggingface org/model-name
-
-# 下载多个
-python download_models.py model1 model2 model3
 ```
-
-## 📁 文件说明
-
-| 文件 | 说明 | 是否需要修改 |
-|------|------|--------------|
-| `download_models.py` | 主入口（下载调度器）| ❌ 不需要 |
-| `modelscope_patch.py` | Python 3.10 补丁 | ❌ 不需要 |
-| `downloaders/` | 下载器模块 | ⚠️ 添加新下载源时 |
-| `projects/base.py` | 项目抽象基类 | ❌ 不需要 |
-| `projects/loader.py` | 项目加载器 | ✅ 注册新项目 |
-| `projects/*.py` | 各项目配置 | ✅ 添加新项目 |
-
-## 💡 特性
-
-- ✅ **插件化架构** - 每个项目独立配置
-- ✅ **模块化下载器** - 每个下载渠道独立为类，易于扩展
-- ✅ **多源支持** - ModelScope、HuggingFace，可自定义添加
-- ✅ **智能检测** - 自动跳过已下载的模型
-- ✅ **统一管理** - 所有项目模型集中下载
-- ✅ **灵活使用** - 支持项目配置或手动指定
-
-## 🔧 高级用法
-
-### 查看项目摘要
-
-```bash
-python -m projects.loader
-```
-
-### 只下载特定项目
-
-修改 `projects/loader.py` 临时注释掉不需要的项目。
-
-### 添加自定义下载源
-
-**1. 创建新的下载器类**（`downloaders/custom_downloader.py`）：
-
-```python
-from .base_downloader import BaseDownloader
-
-class CustomDownloader(BaseDownloader):
-    def is_available(self) -> bool:
-        # 检查依赖是否安装
-        return True
-    
-    def download(self, model_id: str) -> bool:
-        # 实现下载逻辑
-        try:
-            # 你的下载代码
-            return True
-        except Exception as e:
-            print(f"  ❌ 下载失败: {e}")
-            return False
-```
-
-**2. 在工厂类注册**（修改 `downloaders/factory.py`）：
-
-```python
-from .custom_downloader import CustomDownloader
-
-class DownloaderFactory:
-    _downloaders = {
-        'modelscope': ModelScopeDownloader,
-        'huggingface': HuggingFaceDownloader,
-        'custom': CustomDownloader,  # 添加这行
-    }
-```
-
-**3. 在项目中使用**：
-
-```python
-@property
-def models(self):
-    return {
-        'modelscope': [...],
-        'custom': ['model-id'],  # 使用自定义源
-    }
+/runpod-volume/ 或 /workspace/
+├── .metadata/                    # 元数据（增量追踪）
+├── python-deps/                  # Python 依赖
+│   ├── py3.10/
+│   │   └── speaker-diarization/
+│   └── py3.11/
+│       └── text-generation/
+└── models/                       # 模型（所有项目共享）
+    └── hub/
 ```

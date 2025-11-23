@@ -1,0 +1,29 @@
+# Speaker Diarization 项目依赖
+# Python 3.10
+
+# ModelScope 相关
+modelscope
+funasr
+
+# Transformers
+transformers
+
+# PyTorch
+torch
+torchaudio
+
+# 音频处理
+librosa
+soundfile
+scipy
+
+# API 服务
+fastapi
+uvicorn
+python-multipart
+
+# HTTP 请求
+requests
+
+# RunPod
+runpod

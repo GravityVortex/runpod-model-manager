@@ -2,7 +2,9 @@
 """
 说话人分割项目配置
 """
-from .base import BaseProject
+import os
+from pathlib import Path
+from ..base import BaseProject
 from downloaders.factory import DownloaderFactory
 
 
@@ -23,6 +25,13 @@ class SpeakerDiarizationProject(BaseProject):
                 "damo/speech_campplus-transformer_scl_zh-cn_16k-common",
             ]
         }
+    
+    @property
+    def requirements_file(self):
+        """requirements.txt 路径"""
+        # 返回当前目录下的 requirements.txt
+        current_dir = Path(__file__).parent
+        return str(current_dir / 'requirements.txt')
     
     def download_models(self, model_cache: str):
         """下载 ModelScope 模型"""
