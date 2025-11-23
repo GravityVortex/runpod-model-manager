@@ -155,14 +155,32 @@ class VolumeManager:
         
         try:
             print(f"🚀 开始安装 {len(to_install)} 个依赖...")
-            print(f"📍 执行中，请等待...\n")
+            print(f"{'='*60}\n")
             import sys
-            sys.stdout.flush()  # 强制刷新输出
+            sys.stdout.flush()
             
-            # 直接使用 subprocess.call，最简单最可靠
-            return_code = subprocess.call(cmd)
+            # 使用 Popen 实时输出，line-buffered 模式
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,  # 行缓冲
+                universal_newlines=True
+            )
             
-            print(f"\n📍 pip 进程退出码: {return_code}")
+            # 实时读取并打印输出
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                print(line, end='', flush=True)
+            
+            # 等待进程结束
+            return_code = process.wait()
+            
+            print(f"\n{'='*60}")
+            print(f"📍 pip 进程退出码: {return_code}")
             sys.stdout.flush()
             
             if return_code != 0:
@@ -175,24 +193,34 @@ class VolumeManager:
             print(f"\n🔄 替换依赖目录...")
             
             if deps_path.exists():
-                # 先重命名旧目录为备份
+                import threading
+                
+                # 处理旧备份（如果存在）
                 deps_path_backup = deps_path.parent / f'{project_name}_old'
-                print(f"   - 备份旧目录: {deps_path.name} -> {deps_path_backup.name}")
-                
-                # 如果备份目录存在，先删除
                 if deps_path_backup.exists():
-                    shutil.rmtree(deps_path_backup)
+                    # 重命名旧备份为待删除
+                    deps_path_to_delete = deps_path.parent / f'{project_name}_delete_{int(__import__("time").time())}'
+                    print(f"   - 标记旧备份待删除: {deps_path_backup.name} -> {deps_path_to_delete.name}")
+                    deps_path_backup.rename(deps_path_to_delete)
+                    
+                    # 后台删除
+                    def delete_old():
+                        try:
+                            shutil.rmtree(deps_path_to_delete)
+                        except:
+                            pass
+                    threading.Thread(target=delete_old, daemon=True).start()
                 
-                # 重命名旧目录为备份
+                # 重命名当前目录为备份
+                print(f"   - 备份当前目录: {deps_path.name} -> {deps_path_backup.name}")
                 deps_path.rename(deps_path_backup)
                 
-                # 重命名临时目录为正式目录
+                # 激活新目录
                 print(f"   - 激活新目录: {deps_path_temp.name} -> {deps_path.name}")
                 deps_path_temp.rename(deps_path)
                 
-                # 异步删除备份目录（不等待）
-                print(f"   - 后台删除备份目录...")
-                import threading
+                # 后台删除备份
+                print(f"   - 后台删除旧版本...")
                 def delete_backup():
                     try:
                         shutil.rmtree(deps_path_backup)
