@@ -7,5 +7,5 @@ modelscope>=1.10.0
 # HuggingFace 下载器
 huggingface-hub
 
-# PyYAML (元数据管理)
+# PyYAML (元数据管理 + 依赖配置解析)
 pyyaml
