@@ -156,17 +156,14 @@ class VolumeManager:
             print(f"🚀 开始安装 {len(to_install)} 个依赖...")
             print(f"📍 命令: {' '.join(cmd[:5])}...")
             
-            # 使用 Popen 实时输出，避免缓冲
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            # 使用 Popen，但不捕获输出，直接继承父进程的 stdout/stderr
+            process = subprocess.Popen(cmd)
             
-            # 实时打印输出
-            for line in iter(process.stdout.readline, ''):
-                if line:
-                    print(line.rstrip())
+            # 等待进程完成
+            return_code = process.wait()
             
-            process.wait()
-            if process.returncode != 0:
-                raise Exception(f"pip 安装失败，返回码: {process.returncode}")
+            if return_code != 0:
+                raise Exception(f"pip 安装失败，返回码: {return_code}")
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
