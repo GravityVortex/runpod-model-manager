@@ -19,6 +19,7 @@
 runpod-model-manager/
 ├── volume_cli.py            # 统一 CLI 入口
 ├── volume_manager.py        # Volume 增量管理
+├── dependency_installer.py  # 通用依赖安装器
 ├── modelscope_patch.py      # ModelScope 兼容性补丁
 ├── requirements.txt         # 管理工具依赖（modelscope、huggingface-hub）
 ├── commands/                # CLI 命令模块
@@ -26,13 +27,13 @@ runpod-model-manager/
 └── projects/                # 项目配置
     ├── speaker_diarization/ # 示例项目
     │   ├── config.py
-    │   └── requirements.txt # 项目业务依赖
+    │   └── dependencies.yaml # 项目依赖配置（多索引源）
     └── your_project/        # 添加更多项目
 ```
 
 **依赖说明**：
 - 📦 **根目录 `requirements.txt`**：运行 `volume_cli.py` 需要的依赖（modelscope、huggingface-hub）
-- 📦 **项目目录 `requirements.txt`**：项目业务代码需要的依赖（torch、transformers 等）
+- 📦 **项目目录 `dependencies.yaml`**：项目依赖配置，支持多索引源（torch、transformers 等）
 
 ## 🚀 快速开始
 
@@ -134,9 +135,9 @@ class MyProject(BaseProject):
         return '3.10'
     
     @property
-    def requirements_file(self):
-        """当前目录的 requirements.txt"""
-        return str(Path(__file__).parent / 'requirements.txt')
+    def dependencies_config(self):
+        """依赖配置文件"""
+        return str(Path(__file__).parent / 'dependencies.yaml')
     
     @property
     def models(self):
@@ -150,14 +151,29 @@ class MyProject(BaseProject):
         ...
 ```
 
-**创建依赖文件** (`projects/my_project/requirements.txt`)：
+**创建依赖配置** (`projects/my_project/dependencies.yaml`)：
 
-```txt
-# 你的项目依赖
-transformers==4.35.0
-torch==2.1.0
-fastapi
-runpod
+```yaml
+groups:
+  pytorch:
+    index_url: "https://download.pytorch.org/whl/cu121"
+    packages:
+      - torch==2.1.0
+  
+  standard:
+    index_url: null
+    packages:
+      - transformers==4.35.0
+      - fastapi
+      - runpod
+
+install_order:
+  - pytorch
+  - standard
+
+metadata:
+  project: my-project
+  python_version: "3.10"
 ```
 
 **创建导出文件** (`projects/my_project/__init__.py`)：
@@ -188,6 +204,7 @@ PROJECTS = [
 
 - [CLI_GUIDE.md](./CLI_GUIDE.md) - 完整 CLI 使用指南
 - [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - 项目结构说明
+- [DEPENDENCY_MANAGEMENT.md](./DEPENDENCY_MANAGEMENT.md) - 配置化依赖管理系统 ⭐
 - [PYTHON_VERSION_HANDLING.md](./PYTHON_VERSION_HANDLING.md) - Python 版本检测和处理
 - [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md) - 添加项目详细指南
 

@@ -29,46 +29,14 @@ class BaseProject(ABC):
         pass
     
     @property
-    def requirements_file(self) -> Optional[str]:
+    def dependencies_config(self) -> Optional[str]:
         """
-        requirements.txt 文件路径（相对于项目根目录）
-        返回格式: 'path/to/requirements.txt'
-        如果不需要依赖管理，返回 None
+        依赖配置文件路径 (dependencies.yaml)
+        返回格式: 'path/to/dependencies.yaml'
+        支持多索引源的配置化依赖管理
+        如果返回 None，表示项目无依赖管理
         """
         return None
-    
-    @property
-    def dependencies(self) -> Optional[List[str]]:
-        """
-        从 requirements.txt 读取依赖列表
-        子类一般不需要重写此方法，只需指定 requirements_file
-        """
-        if not self.requirements_file:
-            return None
-        
-        import os
-        from pathlib import Path
-        
-        # 支持绝对路径或相对路径
-        req_file = Path(self.requirements_file)
-        if not req_file.is_absolute():
-            # 相对路径，从当前工作目录解析
-            req_file = Path.cwd() / req_file
-        
-        if not req_file.exists():
-            print(f"⚠️  requirements.txt 未找到: {req_file}")
-            return None
-        
-        # 读取并解析
-        deps = []
-        with open(req_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                # 跳过注释和空行
-                if line and not line.startswith('#'):
-                    deps.append(line)
-        
-        return deps if deps else None
     
     @property
     def python_version(self) -> str:

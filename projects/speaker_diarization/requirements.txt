@@ -1,7 +1,21 @@
---extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.4.1+cu121
-torchaudio==2.4.1+cu121
+# ============================================================
+# 依赖列表（已弃用）
+# ============================================================
+# 此文件仅用于记录和参考
+# 
+# 请使用 dependencies.yaml 进行配置化管理
+# 参考文档: ../../DEPENDENCY_MANAGEMENT.md
+#
+# 正确使用方式:
+#   python volume_cli.py deps install --project speaker-diarization
+#
+# dependencies.yaml 支持:
+#   - 多索引源（PyTorch 官方镜像等）
+#   - 分组管理
+#   - 安装顺序控制
+# ============================================================
 
+# === 基础依赖 ===
 tqdm==4.67.1
 scipy==1.10.1
 numpy==1.23.5

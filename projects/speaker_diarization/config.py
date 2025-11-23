@@ -27,11 +27,10 @@ class SpeakerDiarizationProject(BaseProject):
         }
     
     @property
-    def requirements_file(self):
-        """requirements.txt 路径"""
-        # 返回当前目录下的 requirements.txt
+    def dependencies_config(self):
+        """依赖配置文件路径 (dependencies.yaml)"""
         current_dir = Path(__file__).parent
-        return str(current_dir / 'requirements.txt')
+        return str(current_dir / 'dependencies.yaml')
     
     def download_models(self, model_cache: str):
         """下载 ModelScope 模型"""

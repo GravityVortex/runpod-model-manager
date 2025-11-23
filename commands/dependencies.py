@@ -36,9 +36,9 @@ def install_dependencies(args):
         print(f"❌ {e}")
         sys.exit(1)
     
-    # 检查项目是否定义了依赖
-    if not project.dependencies:
-        print(f"⚠️  项目 {args.project} 未定义依赖列表")
+    # 检查项目是否定义了依赖配置
+    if not project.dependencies_config:
+        print(f"⚠️  项目 {args.project} 未定义依赖配置文件 (dependencies.yaml)")
         return
     
     # 检测 Volume 路径
@@ -54,7 +54,13 @@ def install_dependencies(args):
     print(f"📂 Volume: {volume_path}")
     print(f"🐍 需要 Python: {required_version}")
     print(f"🐍 当前 Python: {current_version}")
-    print(f"📊 定义依赖数: {len(project.dependencies)}")
+    print(f"📝 配置文件: {project.dependencies_config}")
+    
+    from pathlib import Path
+    if not Path(project.dependencies_config).exists():
+        print(f"❌ 配置文件不存在: {project.dependencies_config}")
+        sys.exit(1)
+    print(f"✅ 配置文件存在")
     
     # 版本检查
     if current_version != required_version:
@@ -163,43 +169,26 @@ def install_dependencies(args):
     else:
         print(f"✅ Python 版本匹配")
     
-    # 检查依赖变化
-    changed, added, removed = manager.check_dependencies_changed(
-        args.project, project.dependencies
-    )
-    
-    if changed and not args.force:
-        print(f"\n🔍 检测到依赖变化:")
-        if added:
-            print(f"  ➕ 新增: {len(added)}")
-            for dep in sorted(added):
-                print(f"     - {dep}")
-        if removed:
-            print(f"  ➖ 移除: {len(removed)}")
-            for dep in sorted(removed):
-                print(f"     - {dep}")
-    elif args.force:
-        print(f"\n🔄 强制重新安装模式")
-    else:
-        print(f"\n✅ 依赖已是最新")
-    
-    print()
-    
-    # 安装依赖（使用检查后的版本）
+    # 安装依赖（使用配置文件）
     try:
-        result = manager.install_dependencies(
+        print(f"\n📦 使用配置文件安装依赖...")
+        result = manager.install_dependencies_from_config(
             args.project,
-            project.dependencies,
-            python_version=required_version,  # 使用检查后的版本
-            mirror=args.mirror,
-            force=args.force
+            project.dependencies_config,
+            python_version=required_version,
+            mirror=args.mirror
         )
         
         # 显示结果
         print("\n" + "=" * 60)
         print("✅ 安装完成！")
         print("=" * 60)
-        print(f"📊 统计: 总计 {result['total']}, 安装 {result['installed']}, 跳过 {result['skipped']}")
+        print(f"📊 统计: 总计 {result['total']}, 安装 {result['installed']}, 失败 {result['failed']}")
+        if result.get('groups'):
+            print(f"\n分组安装结果:")
+            for group, success in result['groups'].items():
+                status = "✅" if success else "❌"
+                print(f"  {status} {group}")
         
         print(f"\n📝 使用说明:")
         print(f"  FROM python:{required_version}")
@@ -207,6 +196,8 @@ def install_dependencies(args):
         
     except Exception as e:
         print(f"\n❌ 安装失败: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
@@ -218,18 +209,58 @@ def list_dependencies(args):
         print(f"❌ {e}")
         sys.exit(1)
     
-    if not project.dependencies:
-        print(f"⚠️  项目 {args.project} 未定义依赖列表")
+    if not project.dependencies_config:
+        print(f"⚠️  项目 {args.project} 未定义依赖配置文件")
         return
+    
+    from pathlib import Path
+    import yaml
+    
+    config_file = Path(project.dependencies_config)
+    if not config_file.exists():
+        print(f"❌ 配置文件不存在: {config_file}")
+        sys.exit(1)
+    
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
     
     print("=" * 60)
     print(f"📦 项目: {args.project}")
     print("=" * 60)
     print(f"🐍 Python 版本: {project.python_version}")
-    print(f"📊 依赖数量: {len(project.dependencies)}\n")
+    print(f"📝 配置文件: {project.dependencies_config}\n")
     
-    for i, dep in enumerate(project.dependencies, 1):
-        print(f"{i:2d}. {dep}")
+    groups = config.get('groups', {})
+    install_order = config.get('install_order', list(groups.keys()))
+    
+    total_packages = 0
+    for group_name in install_order:
+        if group_name not in groups:
+            continue
+        
+        group_config = groups[group_name]
+        packages = group_config.get('packages', [])
+        index_url = group_config.get('index_url')
+        description = group_config.get('description', '')
+        
+        print(f"{'─'*60}")
+        print(f"📦 组: {group_name}")
+        if description:
+            print(f"   {description}")
+        if index_url:
+            print(f"   索引: {index_url}")
+        print(f"   包数量: {len(packages)}")
+        print(f"{'─'*60}")
+        
+        for i, pkg in enumerate(packages, 1):
+            print(f"  {i:2d}. {pkg}")
+        
+        print()
+        total_packages += len(packages)
+    
+    print("=" * 60)
+    print(f"📊 总计: {total_packages} 个包")
+    print("=" * 60)
 
 
 def check_dependencies(args):
@@ -242,16 +273,26 @@ def check_dependencies(args):
         print(f"❌ {e}")
         sys.exit(1)
     
-    if not project.dependencies:
-        print(f"⚠️  项目 {args.project} 未定义依赖列表")
+    if not project.dependencies_config:
+        print(f"⚠️  项目 {args.project} 未定义依赖配置文件")
         return
+    
+    from pathlib import Path
+    import yaml
+    
+    config_file = Path(project.dependencies_config)
+    if not config_file.exists():
+        print(f"❌ 配置文件不存在: {config_file}")
+        sys.exit(1)
+    
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
     
     print("=" * 60)
     print(f"🔍 检查依赖完整性: {args.project}")
     print("=" * 60)
     
     # 依赖路径
-    from pathlib import Path
     deps_path = Path(volume_path) / 'python-deps' / f'py{project.python_version}' / args.project
     
     if not deps_path.exists():
@@ -259,6 +300,17 @@ def check_dependencies(args):
         print(f"\n💡 使用以下命令安装:")
         print(f"   python3 volume_cli.py deps install --project {args.project}")
         sys.exit(1)
+    
+    # 获取所有依赖包
+    groups = config.get('groups', {})
+    all_packages = []
+    for group_name, group_config in groups.items():
+        packages = group_config.get('packages', [])
+        all_packages.extend(packages)
+    
+    if not all_packages:
+        print(f"\n⚠️  配置文件中没有定义依赖包")
+        return
     
     # 尝试导入依赖
     import sys
@@ -268,7 +320,7 @@ def check_dependencies(args):
     success = 0
     
     print()
-    for dep in project.dependencies:
+    for dep in all_packages:
         # 提取包名（去掉版本号）
         pkg_name = dep.split('==')[0].split('>=')[0].split('<=')[0].strip()
         
@@ -295,7 +347,7 @@ def check_dependencies(args):
         for pkg in failed:
             print(f"  - {pkg}")
         print(f"\n💡 重新安装:")
-        print(f"   python3 volume_cli.py deps install --project {args.project} --force")
+        print(f"   python3 volume_cli.py deps install --project {args.project}")
         sys.exit(1)
     else:
         print("\n✅ 所有依赖完整可用")

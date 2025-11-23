@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from datetime import datetime
+from dependency_installer import DependencyInstaller
 
 
 class VolumeManager:
@@ -380,3 +381,57 @@ class VolumeManager:
             project_name = metadata_file.stem
             projects.append(self.get_project_stats(project_name))
         return projects
+    
+    def install_dependencies_from_config(
+        self,
+        project_name: str,
+        config_file: str,
+        python_version: str,
+        mirror: Optional[str] = None
+    ) -> Dict:
+        """
+        使用依赖配置文件 (dependencies.yaml) 安装依赖
+        
+        Args:
+            project_name: 项目名称
+            config_file: 依赖配置文件路径 (dependencies.yaml)
+            python_version: Python 版本 (如 '3.10')
+            mirror: PyPI 镜像源（仅用于未指定 index_url 的依赖组）
+        
+        Returns:
+            安装结果统计
+        """
+        # 按 Python 版本隔离依赖
+        deps_path = self.volume_path / 'python-deps' / f'py{python_version}' / project_name
+        deps_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        print(f"\n{'='*60}")
+        print(f"📦 使用配置文件安装依赖: {config_file}")
+        print(f"{'='*60}")
+        
+        # 创建依赖安装器
+        installer = DependencyInstaller(config_file)
+        
+        # 安装到目标目录
+        results = installer.install(
+            target_dir=str(deps_path),
+            mirror=mirror,
+            dry_run=False
+        )
+        
+        # 更新元数据
+        all_packages = installer.get_all_packages()
+        metadata = self._load_metadata(project_name)
+        for pkg in all_packages:
+            metadata['dependencies'][pkg] = {
+                'installed': True,
+                'timestamp': datetime.now().isoformat()
+            }
+        self._save_metadata(project_name, metadata)
+        
+        return {
+            'total': len(all_packages),
+            'installed': sum(1 for s in results.values() if s),
+            'failed': sum(1 for s in results.values() if not s),
+            'groups': results
+        }
