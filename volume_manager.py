@@ -173,9 +173,14 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            # 直接运行 pip，保留 TTY 连接以显示进度条
-            # stdout 和 stderr 设为 None，直接输出到终端
-            subprocess.run(cmd, check=True)
+            # 使用 Popen 实时显示 pip 输出和进度条
+            # 不捕获输出，直接连接到父进程的 stdout/stderr
+            process = subprocess.Popen(cmd)
+            
+            # 等待进程结束
+            return_code = process.wait()
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, cmd)
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
