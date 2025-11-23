@@ -391,6 +391,7 @@ class VolumeManager:
     ) -> Dict:
         """
         使用依赖配置文件 (dependencies.yaml) 安装依赖
+        使用临时目录策略：先安装到临时目录，成功后再替换正式目录
         
         Args:
             project_name: 项目名称
@@ -403,21 +404,70 @@ class VolumeManager:
         """
         # 按 Python 版本隔离依赖
         deps_path = self.volume_path / 'python-deps' / f'py{python_version}' / project_name
+        deps_path_temp = self.volume_path / 'python-deps' / f'py{python_version}' / f'{project_name}_tmp'
         deps_path.parent.mkdir(parents=True, exist_ok=True)
         
         print(f"\n{'='*60}")
         print(f"📦 使用配置文件安装依赖: {config_file}")
         print(f"{'='*60}")
         
+        # 清理可能存在的临时目录
+        import shutil
+        if deps_path_temp.exists():
+            print(f"🗑️  清理旧的临时目录...")
+            shutil.rmtree(deps_path_temp)
+        
+        # 创建临时目录
+        deps_path_temp.mkdir(parents=True, exist_ok=True)
+        print(f"📂 临时目录: {deps_path_temp}")
+        
         # 创建依赖安装器
         installer = DependencyInstaller(config_file)
         
-        # 安装到目标目录
+        # 安装到临时目录
         results = installer.install(
-            target_dir=str(deps_path),
+            target_dir=str(deps_path_temp),
             mirror=mirror,
             dry_run=False
         )
+        
+        # 检查是否有失败的组
+        failed_groups = [name for name, success in results.items() if not success]
+        if failed_groups:
+            print(f"\n{'='*60}")
+            print(f"❌ 安装失败")
+            print(f"{'='*60}")
+            print(f"失败的组: {', '.join(failed_groups)}")
+            print(f"\n临时目录未被删除，可用于调试: {deps_path_temp}")
+            
+            return {
+                'total': len(installer.get_all_packages()),
+                'installed': 0,
+                'failed': len(failed_groups),
+                'groups': results
+            }
+        
+        # 所有组都安装成功，替换正式目录
+        print(f"\n🔄 替换依赖目录...")
+        
+        if deps_path.exists():
+            # 备份旧目录
+            deps_path_backup = deps_path.parent / f'{project_name}_old'
+            if deps_path_backup.exists():
+                print(f"🗑️  删除旧备份...")
+                shutil.rmtree(deps_path_backup)
+            
+            print(f"📦 备份当前目录 -> {deps_path_backup.name}")
+            deps_path.rename(deps_path_backup)
+        
+        # 将临时目录重命名为正式目录
+        print(f"✅ 应用新安装 -> {deps_path.name}")
+        deps_path_temp.rename(deps_path)
+        
+        # 清理备份（可选，如果需要保留备份可以注释掉）
+        if deps_path.exists() and deps_path_backup.exists():
+            print(f"🗑️  清理备份目录...")
+            shutil.rmtree(deps_path_backup)
         
         # 更新元数据
         all_packages = installer.get_all_packages()

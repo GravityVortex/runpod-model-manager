@@ -154,26 +154,26 @@ class DependencyInstaller:
         # 打印命令
         cmd_str = ' '.join(cmd)
         print(f"\n💻 命令: {cmd_str}")
+        print()  # 空行，使输出更清晰
         
         if dry_run:
             print("   (Dry run - 不执行)")
             return True
         
-        # 执行安装
+        # 执行安装（实时显示输出）
         try:
+            # 不捕获输出，让日志实时显示到终端
             result = subprocess.run(
                 cmd,
-                capture_output=True,
-                text=True,
                 check=False
             )
             
+            print()  # 安装完成后空一行
             if result.returncode == 0:
                 print(f"✅ 组 '{group_name}' 安装成功")
                 return True
             else:
-                print(f"❌ 组 '{group_name}' 安装失败")
-                print(f"错误信息:\n{result.stderr}")
+                print(f"❌ 组 '{group_name}' 安装失败 (退出码: {result.returncode})")
                 return False
         
         except Exception as e:
