@@ -11,9 +11,51 @@ from pathlib import Path
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
 
+# 检查必需的依赖
+def check_dependencies():
+    """检查 CLI 工具的必需依赖"""
+    missing = []
+    
+    try:
+        import yaml
+    except ImportError:
+        missing.append('pyyaml')
+    
+    try:
+        import modelscope
+    except ImportError:
+        missing.append('modelscope')
+    
+    try:
+        import huggingface_hub
+    except ImportError:
+        missing.append('huggingface-hub')
+    
+    if missing:
+        print("=" * 60)
+        print("❌ 缺少必需的依赖包")
+        print("=" * 60)
+        print(f"\n当前 Python: {sys.executable}")
+        print(f"Python 版本: {sys.version_info.major}.{sys.version_info.minor}")
+        print(f"\n缺失的包: {', '.join(missing)}")
+        print("\n请在当前 Python 版本中安装管理工具依赖:")
+        print("  cd runpod-model-manager")
+        print("  pip install -r requirements.txt")
+        print("\n或手动安装:")
+        print(f"  pip install {' '.join(missing)}")
+        print("\n💡 提示:")
+        print("  - 如果你切换了 Python 版本，需要在新版本中重新安装依赖")
+        print("  - 每个 Python 版本都需要独立安装依赖包")
+        print("\n安装完成后再运行此命令。")
+        print("=" * 60)
+        sys.exit(1)
+
 
 def main():
     """主命令入口"""
+    # 检查必需的依赖
+    check_dependencies()
+    
     parser = argparse.ArgumentParser(
         prog='volume',
         description='RunPod Volume 统一管理工具',

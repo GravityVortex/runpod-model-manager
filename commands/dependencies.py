@@ -76,6 +76,35 @@ def install_dependencies(args):
         if shutil.which(python_cmd):
             print(f"\n✅ 检测到系统已安装 Python {required_version}")
             print(f"   自动切换到 {python_cmd} 继续运行...")
+            
+            # 检查新版本是否有管理工具依赖
+            print(f"\n📦 检查 {python_cmd} 的管理工具依赖...")
+            check_cmd = [python_cmd, "-c", "import yaml, modelscope, huggingface_hub"]
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+            
+            if check_result.returncode != 0:
+                print(f"⚠️  {python_cmd} 缺少管理工具依赖")
+                print(f"🔧 自动安装根目录依赖到 {python_cmd}...")
+                print()
+                
+                # 自动安装根目录依赖
+                import os
+                root_requirements = os.path.join(os.getcwd(), "requirements.txt")
+                install_cmd = [python_cmd, "-m", "pip", "install", "-r", root_requirements]
+                
+                print(f"💻 命令: {' '.join(install_cmd)}")
+                install_result = subprocess.run(install_cmd)
+                
+                if install_result.returncode != 0:
+                    print(f"\n❌ 自动安装失败")
+                    print(f"\n请手动安装:")
+                    print(f"   {python_cmd} -m pip install -r requirements.txt")
+                    sys.exit(1)
+                
+                print(f"\n✅ 管理工具依赖安装完成")
+            else:
+                print(f"✅ 管理工具依赖已安装")
+            
             print()
             
             # 使用正确的 Python 版本重新运行
@@ -130,7 +159,22 @@ def install_dependencies(args):
             print(f"      ✓ {version_output}")
             
             print(f"\n✅ Python {required_version} 安装成功！")
-            print(f"   使用 python{required_version} 重新运行...")
+            
+            # 自动安装管理工具依赖
+            print(f"\n📦 安装管理工具依赖到新的 Python 版本...")
+            root_requirements = os.path.join(os.getcwd(), "requirements.txt")
+            install_cmd = [f"python{required_version}", "-m", "pip", "install", "-r", root_requirements]
+            
+            print(f"💻 命令: {' '.join(install_cmd)}")
+            install_result = subprocess.run(install_cmd)
+            
+            if install_result.returncode != 0:
+                print(f"\n⚠️  管理工具依赖安装失败，但仍会继续运行")
+                print(f"   后续可能会遇到 import 错误")
+            else:
+                print(f"✅ 管理工具依赖安装完成")
+            
+            print(f"\n   使用 python{required_version} 重新运行...")
             print()
             
             # 使用新安装的 Python 重新运行

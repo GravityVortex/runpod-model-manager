@@ -49,8 +49,11 @@ cd /workspace
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 2. 安装管理工具依赖
+# 2. ⚠️ 重要：先安装管理工具依赖
+# CLI 工具需要 pyyaml、modelscope、huggingface-hub 等依赖
 pip install -r requirements.txt
+
+# 💡 提示：当系统自动切换 Python 版本时，会自动安装这些依赖到新版本
 
 # 3. 一键设置项目（依赖+模型）
 python3 volume_cli.py setup --project speaker-diarization
