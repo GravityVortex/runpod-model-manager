@@ -28,29 +28,94 @@ class VolumeManager:
         self.metadata_dir = self.volume_path / '.metadata'
         self.metadata_dir.mkdir(exist_ok=True)
     
-    def _get_project_metadata_file(self, project_name: str) -> Path:
-        """获取项目元数据文件路径"""
+    def _get_project_metadata_file(self, project_name: str, python_version: Optional[str] = None) -> Path:
+        """
+        获取项目元数据文件路径
+        
+        Args:
+            project_name: 项目名称
+            python_version: Python 版本（如 '3.10'），不指定则返回旧格式兼容
+        """
+        if python_version:
+            return self.metadata_dir / f'{project_name}-py{python_version}.json'
         return self.metadata_dir / f'{project_name}.json'
     
-    def _load_metadata(self, project_name: str) -> Dict:
-        """加载项目元数据"""
-        metadata_file = self._get_project_metadata_file(project_name)
+    def _load_metadata(self, project_name: str, python_version: Optional[str] = None) -> Dict:
+        """
+        加载项目元数据
+        
+        Args:
+            project_name: 项目名称
+            python_version: Python 版本（如 '3.10'）
+        """
+        metadata_file = self._get_project_metadata_file(project_name, python_version)
         if metadata_file.exists():
             with open(metadata_file, 'r') as f:
                 return json.load(f)
         return {
             'project': project_name,
+            'python_version': python_version,
             'dependencies': {},
             'models': {},
             'last_updated': None
         }
     
-    def _save_metadata(self, project_name: str, metadata: Dict):
-        """保存项目元数据"""
-        metadata_file = self._get_project_metadata_file(project_name)
+    def _save_metadata(self, project_name: str, metadata: Dict, python_version: Optional[str] = None):
+        """
+        保存项目元数据
+        
+        Args:
+            project_name: 项目名称
+            metadata: 元数据字典
+            python_version: Python 版本（如 '3.10'）
+        """
+        metadata_file = self._get_project_metadata_file(project_name, python_version)
         metadata['last_updated'] = datetime.now().isoformat()
+        if python_version:
+            metadata['python_version'] = python_version
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
+    
+    def _fix_modelscope_release_date(self, deps_dir: Path):
+        """
+        修复 ModelScope 版本日期（标准方法）
+        
+        原理：
+        - 将 __release_datetime__ 改为过去的日期（如 2024-01-01）
+        - ModelScope 判断为正式版本，跳过 AST 扫描
+        - 避免 Python 3.10/3.11 环境下的 type_params AttributeError
+        
+        Args:
+            deps_dir: 依赖安装目录
+        """
+        version_file = deps_dir / 'modelscope' / 'version.py'
+        
+        if not version_file.exists():
+            return
+        
+        try:
+            import re
+            content = version_file.read_text(encoding='utf-8')
+            
+            # 检查是否已修改
+            if '# PATCHED' in content:
+                print(f"   ℹ️  ModelScope 版本已修复")
+                return
+            
+            # 修改发布日期为过去的日期
+            pattern = r"__release_datetime__\s*=\s*['\"].*?['\"]"
+            replacement = "__release_datetime__ = '2024-01-01 00:00:00'  # PATCHED: Set as release version"
+            new_content = re.sub(pattern, replacement, content)
+            
+            if new_content != content:
+                version_file.write_text(new_content, encoding='utf-8')
+                print(f"   ✅ ModelScope 已标记为正式版本（跳过 AST 扫描）")
+                print(f"   ℹ️  原理：发布日期在过去 → 正式版本 → 跳过 AST 扫描")
+            else:
+                print(f"   ⚠️  未找到 __release_datetime__ 或格式变化")
+        
+        except Exception as e:
+            print(f"   ⚠️  修复 ModelScope 版本时出错: {e}")
     
     def _hash_dependencies(self, deps: List[str]) -> str:
         """计算依赖列表的哈希值"""
@@ -60,10 +125,16 @@ class VolumeManager:
     def check_dependencies_changed(
         self,
         project_name: str,
-        new_deps: List[str]
+        new_deps: List[str],
+        python_version: Optional[str] = None
     ) -> tuple[bool, Set[str], Set[str]]:
         """
         检查依赖是否变化
+        
+        Args:
+            project_name: 项目名称
+            new_deps: 新的依赖列表
+            python_version: Python 版本（如 '3.10'）
         
         Returns:
             (changed, added, removed)
@@ -71,7 +142,7 @@ class VolumeManager:
             - added: 新增的依赖
             - removed: 移除的依赖
         """
-        metadata = self._load_metadata(project_name)
+        metadata = self._load_metadata(project_name, python_version)
         old_deps = set(metadata['dependencies'].keys())
         new_deps_set = set(new_deps)
         
@@ -276,6 +347,11 @@ class VolumeManager:
             
             print(f"✅ 依赖安装完成！")
             
+            # 安装完成后自动修复 ModelScope
+            if (deps_path / 'modelscope').exists():
+                print(f"\n🛠️  后处理: 修复 ModelScope 版本检测...")
+                self._fix_modelscope_release_date(deps_path)
+            
         except Exception as e:
             # 安装失败，清理临时目录
             print(f"\n❌ 安装失败，清理临时目录...")
@@ -387,7 +463,8 @@ class VolumeManager:
         project_name: str,
         config_file: str,
         python_version: str,
-        mirror: Optional[str] = None
+        mirror: Optional[str] = None,
+        force: bool = False
     ) -> Dict:
         """
         使用依赖配置文件 (dependencies.yaml) 安装依赖
@@ -398,6 +475,7 @@ class VolumeManager:
             config_file: 依赖配置文件路径 (dependencies.yaml)
             python_version: Python 版本 (如 '3.10')
             mirror: PyPI 镜像源（仅用于未指定 index_url 的依赖组）
+            force: 强制重新安装（跳过变更检测）
         
         Returns:
             安装结果统计
@@ -411,18 +489,74 @@ class VolumeManager:
         print(f"📦 使用配置文件安装依赖: {config_file}")
         print(f"{'='*60}")
         
+        # 创建依赖安装器
+        installer = DependencyInstaller(config_file)
+        all_packages = installer.get_all_packages()
+        
+        # 检查依赖是否变化
+        if force:
+            print(f"\n🔄 强制重新安装模式")
+            print(f"   跳过依赖变更检测")
+            changed = True  # 强制视为有变化
+            added = set()
+            removed = set()
+        else:
+            print(f"\n🔍 检查依赖变更...")
+            print(f"   Python 版本: {python_version}")
+            print(f"   配置包数量: {len(all_packages)}")
+            
+            changed, added, removed = self.check_dependencies_changed(
+                project_name, 
+                all_packages,
+                python_version
+            )
+        
+        # 如果依赖未变化且目录已存在，跳过安装
+        if not force and not changed and deps_path.exists():
+            print(f"\n✅ 依赖未变化，跳过重新安装")
+            print(f"   已安装包数: {len(all_packages)}")
+            
+            # 但仍然执行 ModelScope 修复检查
+            if (deps_path / 'modelscope').exists():
+                print(f"\n🛠️  后处理: 检查 ModelScope 版本...")
+                self._fix_modelscope_release_date(deps_path)
+            
+            return {
+                'total': len(all_packages),
+                'installed': 0,
+                'skipped': len(all_packages),
+                'failed': 0,
+                'unchanged': True,
+                'groups': {}
+            }
+        
+        # 有变化或首次安装，执行完整安装流程
+        if changed:
+            print(f"\n📦 检测到依赖变化:")
+            if added:
+                print(f"   ✚ 新增: {len(added)} 个包")
+                for pkg in list(added)[:5]:  # 只显示前5个
+                    print(f"      - {pkg}")
+                if len(added) > 5:
+                    print(f"      ... 还有 {len(added) - 5} 个")
+            if removed:
+                print(f"   ✖ 移除: {len(removed)} 个包")
+                for pkg in list(removed)[:5]:
+                    print(f"      - {pkg}")
+                if len(removed) > 5:
+                    print(f"      ... 还有 {len(removed) - 5} 个")
+        else:
+            print(f"\n📦 首次安装或目录不存在，开始安装...")
+        
         # 清理可能存在的临时目录
         import shutil
         if deps_path_temp.exists():
-            print(f"🗑️  清理旧的临时目录...")
+            print(f"\n🗑️  清理旧的临时目录...")
             shutil.rmtree(deps_path_temp)
         
         # 创建临时目录
         deps_path_temp.mkdir(parents=True, exist_ok=True)
         print(f"📂 临时目录: {deps_path_temp}")
-        
-        # 创建依赖安装器
-        installer = DependencyInstaller(config_file)
         
         # 安装到临时目录
         results = installer.install(
@@ -469,15 +603,20 @@ class VolumeManager:
             print(f"🗑️  清理备份目录...")
             shutil.rmtree(deps_path_backup)
         
+        # 安装完成后自动修复 ModelScope
+        if (deps_path / 'modelscope').exists():
+            print(f"\n🛠️  后处理: 修复 ModelScope 版本检测...")
+            self._fix_modelscope_release_date(deps_path)
+        
         # 更新元数据
         all_packages = installer.get_all_packages()
-        metadata = self._load_metadata(project_name)
+        metadata = self._load_metadata(project_name, python_version)
         for pkg in all_packages:
             metadata['dependencies'][pkg] = {
                 'installed': True,
                 'timestamp': datetime.now().isoformat()
             }
-        self._save_metadata(project_name, metadata)
+        self._save_metadata(project_name, metadata, python_version)
         
         return {
             'total': len(all_packages),

@@ -39,6 +39,16 @@ def patch_ast_for_modelscope():
         'AsyncFunctionDef'  # 异步函数定义
     ]
 
+    # 使用工厂函数避免闭包问题
+    def make_patched_init(original_init):
+        """工厂函数：为每个节点类型创建独立的 patched_init"""
+        def patched_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            if not hasattr(self, 'type_params'):
+                self.type_params = []
+        return patched_init
+
+    patched_count = 0
     for node_type_name in node_types_to_patch:
         node_type = getattr(ast, node_type_name, None)
         if node_type is None:
@@ -48,24 +58,17 @@ def patch_ast_for_modelscope():
         if hasattr(node_type, 'type_params'):
             continue
 
-        # 添加 type_params 属性 (默认空列表)
-        # 使用 _attributes 确保兼容性
+        # 添加 type_params 到 _fields
         if hasattr(node_type, '_fields'):
             original_fields = node_type._fields
             if 'type_params' not in original_fields:
                 node_type._fields = original_fields + ('type_params',)
 
-        # 为实例动态添加默认值
-        original_init = node_type.__init__
+        # 使用工厂函数创建 patched_init
+        node_type.__init__ = make_patched_init(node_type.__init__)
+        patched_count += 1
 
-        def patched_init(self, *args, **kwargs):
-            original_init(self, *args, **kwargs)
-            if not hasattr(self, 'type_params'):
-                self.type_params = []
-
-        node_type.__init__ = patched_init
-
-    print(f"✅ ModelScope AST 补丁已应用 (Python {python_version.major}.{python_version.minor})")
+    print(f"✅ AST 补丁已应用 (Python {python_version.major}.{python_version.minor}.{python_version.micro}, {patched_count} 个节点类型)")
 
 # 自动执行补丁
 if __name__ != "__main__":

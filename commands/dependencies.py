@@ -218,12 +218,16 @@ def install_dependencies(args):
     
     # 安装依赖（使用配置文件）
     try:
+        if args.force:
+            print(f"\n⚠️  使用 --force 参数，将强制重新安装所有依赖")
+        
         print(f"\n📦 使用配置文件安装依赖...")
         result = manager.install_dependencies_from_config(
             args.project,
             project.dependencies_config,
             python_version=required_version,
-            mirror=args.mirror
+            mirror=args.mirror,
+            force=args.force
         )
         
         # 显示结果
