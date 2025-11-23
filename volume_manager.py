@@ -170,17 +170,50 @@ class VolumeManager:
             )
             
             # 实时读取并打印输出
+            last_line = ""
             while True:
                 line = process.stdout.readline()
                 if not line:
                     break
                 print(line, end='', flush=True)
-            
-            # 等待进程结束
-            return_code = process.wait()
+                last_line = line.strip()
             
             print(f"\n{'='*60}")
+            print(f"📍 最后一行输出: {last_line[:100]}")
+            print(f"📍 等待 pip 进程完全退出...")
+            sys.stdout.flush()
+            
+            # 等待进程结束，并跟踪等待时间
+            import time
+            start_wait = time.time()
+            
+            # 使用超时轮询检测卡住
+            timeout = 10  # 最多等待 10 秒
+            check_interval = 0.5  # 每 0.5 秒检查一次
+            elapsed = 0
+            
+            while elapsed < timeout:
+                return_code = process.poll()  # 非阻塞检查
+                if return_code is not None:
+                    # 进程已结束
+                    break
+                time.sleep(check_interval)
+                elapsed += check_interval
+                if elapsed % 2 == 0:  # 每 2 秒打印一次
+                    print(f"📍 等待中... ({elapsed:.1f}s)", flush=True)
+            
+            if return_code is None:
+                # 超时了，进程还在运行
+                print(f"⚠️  警告: pip 进程在输出结束后 {timeout}s 仍未退出")
+                print(f"📍 强制获取退出码...")
+                return_code = process.wait(timeout=5)  # 再等 5 秒
+            
+            wait_duration = time.time() - start_wait
+            
             print(f"📍 pip 进程退出码: {return_code}")
+            print(f"📍 总等待时间: {wait_duration:.2f} 秒")
+            if wait_duration > 2:
+                print(f"⚠️  pip 后处理耗时: {wait_duration:.2f}s (可能在生成 .pyc 或更新缓存)")
             sys.stdout.flush()
             
             if return_code != 0:
