@@ -154,7 +154,7 @@ class VolumeManager:
         project_name: str,
         new_deps: List[str],
         python_version: Optional[str] = None
-    ) -> tuple[bool, Set[str], Set[str]]:
+    ) -> tuple[bool, Set[str], Set[str], Set[str]]:
         """
         检查依赖是否变化
         
@@ -164,20 +164,49 @@ class VolumeManager:
             python_version: Python 版本（如 '3.10'）
         
         Returns:
-            (changed, added, removed)
+            (changed, added, removed, updated)
             - changed: 是否有变化
-            - added: 新增的依赖
-            - removed: 移除的依赖
+            - added: 新增的依赖（包名级别）
+            - removed: 移除的依赖（包名级别）
+            - updated: 版本更新的依赖
         """
+        def extract_pkg_name(dep: str) -> str:
+            """提取包名（去除版本号）"""
+            for sep in ['==', '>=', '<=', '>', '<', '!=', '~=']:
+                if sep in dep:
+                    return dep.split(sep)[0].strip()
+            return dep.strip()
+        
         metadata = self._load_metadata(project_name, python_version)
-        old_deps = set(metadata['dependencies'].keys())
-        new_deps_set = set(new_deps)
         
-        added = new_deps_set - old_deps
-        removed = old_deps - new_deps_set
-        changed = bool(added or removed)
+        # 完整依赖字符串集合
+        old_deps_full = set(metadata['dependencies'].keys())
+        new_deps_full = set(new_deps)
         
-        return changed, added, removed
+        # 包名集合（不含版本）
+        old_pkg_names = {extract_pkg_name(d) for d in old_deps_full}
+        new_pkg_names = {extract_pkg_name(d) for d in new_deps_full}
+        
+        # 纯新增的包（包名不在旧列表中）
+        truly_added = new_pkg_names - old_pkg_names
+        added = {d for d in new_deps_full if extract_pkg_name(d) in truly_added}
+        
+        # 纯删除的包（包名不在新列表中）
+        truly_removed = old_pkg_names - new_pkg_names
+        removed = {d for d in old_deps_full if extract_pkg_name(d) in truly_removed}
+        
+        # 版本更新的包（包名相同，但完整字符串不同）
+        common_pkg_names = old_pkg_names & new_pkg_names
+        updated = set()
+        for pkg_name in common_pkg_names:
+            old_full = next((d for d in old_deps_full if extract_pkg_name(d) == pkg_name), None)
+            new_full = next((d for d in new_deps_full if extract_pkg_name(d) == pkg_name), None)
+            if old_full != new_full:
+                updated.add(new_full)
+        
+        changed = bool(added or removed or updated)
+        
+        return changed, added, removed, updated
     
     def install_dependencies(
         self,
@@ -527,12 +556,13 @@ class VolumeManager:
             changed = True  # 强制视为有变化
             added = set()
             removed = set()
+            updated = set()
         else:
             print(f"\n🔍 检查依赖变更...")
             print(f"   Python 版本: {python_version}")
             print(f"   配置包数量: {len(all_packages)}")
             
-            changed, added, removed = self.check_dependencies_changed(
+            changed, added, removed, updated = self.check_dependencies_changed(
                 project_name, 
                 all_packages,
                 python_version
@@ -557,12 +587,14 @@ class VolumeManager:
                 'groups': {}
             }
         
-        # 有变化或首次安装，执行完整安装流程
+        # 有变化或首次安装，执行安装流程
+        is_first_install = not deps_path.exists()
+        
         if changed:
             print(f"\n📦 检测到依赖变化:")
             if added:
                 print(f"   ✚ 新增: {len(added)} 个包")
-                for pkg in list(added)[:5]:  # 只显示前5个
+                for pkg in list(added)[:5]:
                     print(f"      - {pkg}")
                 if len(added) > 5:
                     print(f"      ... 还有 {len(added) - 5} 个")
@@ -572,8 +604,14 @@ class VolumeManager:
                     print(f"      - {pkg}")
                 if len(removed) > 5:
                     print(f"      ... 还有 {len(removed) - 5} 个")
+            if updated:
+                print(f"   🔄 版本更新: {len(updated)} 个包")
+                for pkg in list(updated)[:5]:
+                    print(f"      - {pkg}")
+                if len(updated) > 5:
+                    print(f"      ... 还有 {len(updated) - 5} 个")
         else:
-            print(f"\n📦 首次安装或目录不存在，开始安装...")
+            print(f"\n📦 首次安装，开始安装所有依赖...")
         
         # 清理可能存在的临时目录
         import shutil
@@ -585,28 +623,132 @@ class VolumeManager:
         deps_path_temp.mkdir(parents=True, exist_ok=True)
         print(f"📂 临时目录: {deps_path_temp}")
         
-        # 安装到临时目录
-        results = installer.install(
-            target_dir=str(deps_path_temp),
-            mirror=mirror,
-            dry_run=False
-        )
+        # 🔥 增量安装策略
+        if removed and not is_first_install:
+            # 有删除的包 → 全部重新安装（避免依赖关系问题）
+            print(f"\n⚠️  检测到包删除，将全部重新安装以确保依赖完整性")
+            results = installer.install(
+                target_dir=str(deps_path_temp),
+                mirror=mirror,
+                dry_run=False
+            )
+        elif (added or updated) and not is_first_install:
+            # 只有新增/更新，没有删除 → 增量安装
+            total_changes = len(added) + len(updated)
+            print(f"\n🚀 增量安装模式：复制现有依赖 + 安装变更包")
+            print(f"   这样可以避免重新下载 PyTorch 等大包")
+            print(f"   变更: {len(added)} 新增, {len(updated)} 更新")
+            
+            # 1. 复制现有依赖到临时目录
+            print(f"\n📋 步骤 1/2: 复制现有依赖...")
+            import time
+            start = time.time()
+            
+            try:
+                shutil.copytree(deps_path, deps_path_temp, dirs_exist_ok=True)
+                elapsed = time.time() - start
+                print(f"   ✅ 复制完成 ({elapsed:.2f}s)")
+            except Exception as e:
+                print(f"   ❌ 复制失败: {e}")
+                print(f"   ⚠️  降级为全量安装...")
+                shutil.rmtree(deps_path_temp)
+                deps_path_temp.mkdir(parents=True, exist_ok=True)
+                results = installer.install(
+                    target_dir=str(deps_path_temp),
+                    mirror=mirror,
+                    dry_run=False
+                )
+            else:
+                # 2. 安装新增和更新的包（按组安装，支持不同索引源）
+                print(f"\n📦 步骤 2/2: 安装/更新 {total_changes} 个包...")
+                
+                # 合并新增和更新的包
+                to_install = list(added) + list(updated)
+                groups = installer.config.get('groups', {})
+                install_order = installer.config.get('install_order', list(groups.keys()))
+                
+                # 按组过滤出需要安装的包
+                install_success = True
+                for group_name in install_order:
+                    if group_name not in groups:
+                        continue
+                    
+                    group_config = groups[group_name]
+                    group_packages = group_config.get('packages', [])
+                    index_url = group_config.get('index_url')
+                    
+                    # 找出这个组中需要安装/更新的包
+                    group_to_install = [pkg for pkg in to_install if pkg in group_packages]
+                    
+                    if not group_to_install:
+                        continue
+                    
+                    print(f"\n   📦 组: {group_name} ({len(group_to_install)} 个包)")
+                    
+                    import sys
+                    cmd = [
+                        sys.executable, '-m', 'pip', 'install',
+                        '--no-cache-dir',
+                        '--target', str(deps_path_temp),
+                        '--upgrade',  # 使用 --upgrade 确保版本更新
+                    ]
+                    
+                    # 添加索引源
+                    if index_url:
+                        cmd.extend(['--index-url', index_url])
+                    elif mirror:
+                        cmd.extend(['-i', mirror])
+                    
+                    cmd.extend(group_to_install)
+                    
+                    try:
+                        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                        print(f"      ✅ 安装成功: {', '.join(group_to_install)}")
+                    except subprocess.CalledProcessError as e:
+                        print(f"      ❌ 安装失败: {e}")
+                        print(f"      {e.stderr}")
+                        install_success = False
+                        break
+                
+                results = {'incremental': install_success}
+        else:
+            # 首次安装 → 完整安装
+            results = installer.install(
+                target_dir=str(deps_path_temp),
+                mirror=mirror,
+                dry_run=False
+            )
         
         # 检查是否有失败的组
-        failed_groups = [name for name, success in results.items() if not success]
-        if failed_groups:
+        if results.get('incremental') is False:
+            # 增量安装失败
             print(f"\n{'='*60}")
-            print(f"❌ 安装失败")
+            print(f"❌ 增量安装失败")
             print(f"{'='*60}")
-            print(f"失败的组: {', '.join(failed_groups)}")
             print(f"\n临时目录未被删除，可用于调试: {deps_path_temp}")
             
             return {
-                'total': len(installer.get_all_packages()),
+                'total': len(all_packages),
                 'installed': 0,
-                'failed': len(failed_groups),
+                'failed': len(added) + len(updated),
                 'groups': results
             }
+        elif 'incremental' not in results:
+            # 完整安装 - 检查各组结果
+            failed_groups = [name for name, success in results.items() if not success]
+            if failed_groups:
+                print(f"\n{'='*60}")
+                print(f"❌ 安装失败")
+                print(f"{'='*60}")
+                print(f"失败的组: {', '.join(failed_groups)}")
+                print(f"\n临时目录未被删除，可用于调试: {deps_path_temp}")
+                
+                return {
+                    'total': len(all_packages),
+                    'installed': 0,
+                    'failed': len(failed_groups),
+                    'groups': results
+                }
         
         # 所有组都安装成功，替换正式目录
         print(f"\n🔄 替换依赖目录...")
@@ -645,9 +787,21 @@ class VolumeManager:
             }
         self._save_metadata(project_name, metadata, python_version)
         
-        return {
-            'total': len(all_packages),
-            'installed': sum(1 for s in results.values() if s),
-            'failed': sum(1 for s in results.values() if not s),
-            'groups': results
-        }
+        # 返回结果统计
+        if results.get('incremental'):
+            # 增量安装
+            return {
+                'total': len(all_packages),
+                'installed': len(added) + len(updated),
+                'failed': 0,
+                'incremental': True,
+                'groups': {}
+            }
+        else:
+            # 完整安装
+            return {
+                'total': len(all_packages),
+                'installed': sum(1 for s in results.values() if s),
+                'failed': sum(1 for s in results.values() if not s),
+                'groups': results
+            }
