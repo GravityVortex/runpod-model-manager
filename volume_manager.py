@@ -103,7 +103,8 @@ class VolumeManager:
         """
         # 按 Python 版本隔离依赖
         deps_path = self.volume_path / 'python-deps' / f'py{python_version}' / project_name
-        deps_path.mkdir(parents=True, exist_ok=True)
+        deps_path_temp = self.volume_path / 'python-deps' / f'py{python_version}' / f'{project_name}_tmp'
+        deps_path.parent.mkdir(parents=True, exist_ok=True)
         
         # 检查依赖变化
         changed, added, removed = self.check_dependencies_changed(
@@ -118,34 +119,34 @@ class VolumeManager:
             'failed': []
         }
         
-        # 如果强制安装或有移除的依赖，清空目录重新安装
-        if force or removed:
-            if removed and not force:
-                print(f"\n⚠️  检测到移除的依赖: {', '.join(removed)}")
-                response = input("是否清空依赖目录重新安装？(y/N): ")
-                if response.lower() != 'y':
-                    force = False
-                else:
-                    force = True
-            
-            if force:
-                print(f"\n🗑️  清空依赖目录: {deps_path}")
-                import shutil
-                if deps_path.exists():
-                    shutil.rmtree(deps_path)
-                deps_path.mkdir(parents=True, exist_ok=True)
-                to_install = dependencies
-                result['removed'] = len(removed)
-            else:
-                to_install = list(added)
-        else:
-            to_install = list(added) if changed else []
+        # 清理可能存在的临时目录
+        import shutil
+        if deps_path_temp.exists():
+            shutil.rmtree(deps_path_temp)
         
-        # 如果没有需要安装的
-        if not to_install:
+        # 如果不是强制安装且依赖没有变化，跳过
+        if not force and not changed:
             print(f"\n✅ 依赖已是最新，无需安装")
             result['skipped'] = len(dependencies)
             return result
+        
+        # 创建临时目录
+        deps_path_temp.mkdir(parents=True, exist_ok=True)
+        
+        # 如果旧目录存在且不是强制重装，先复制已有的依赖到临时目录（增量更新）
+        if deps_path.exists() and not force:
+            print(f"\n� 复制已有依赖到临时目录...")
+            import time
+            start_time = time.time()
+            shutil.copytree(deps_path, deps_path_temp, dirs_exist_ok=True)
+            print(f"   ✓ 复制完成 ({time.time() - start_time:.1f}秒)")
+            # 增量模式：只安装新增的包
+            to_install = list(added)
+        else:
+            # 全新安装或强制重装：安装所有包
+            to_install = dependencies
+            if removed:
+                result['removed'] = len(removed)
         
         # 安装依赖
         print(f"\n📦 待安装依赖: {len(to_install)}")
@@ -157,13 +158,13 @@ class VolumeManager:
         python_exe = sys.executable
         python_version_actual = f"{sys.version_info.major}.{sys.version_info.minor}"
         print(f"\n🐍 使用 Python: {python_exe} ({python_version_actual})")
-        print(f"📂 安装目录: {deps_path}")
+        print(f"📂 临时目录: {deps_path_temp}")
         print()
         
         cmd = [
             sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
-            f'--target={deps_path}',
+            f'--target={deps_path_temp}',  # 安装到临时目录
         ]
         
         # 增量模式优化
@@ -193,9 +194,26 @@ class VolumeManager:
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
+            # 替换原目录
+            print(f"\n🔄 替换原依赖目录...")
+            import time
+            
+            # 删除旧目录
+            if deps_path.exists():
+                print(f"   - 删除旧目录: {deps_path.name}")
+                shutil.rmtree(deps_path)
+            
+            # 重命名临时目录为正式目录
+            print(f"   - 重命名临时目录为: {deps_path.name}")
+            deps_path_temp.rename(deps_path)
+            
             print(f"✅ 依赖安装完成！")
             
         except Exception as e:
+            # 安装失败，清理临时目录
+            print(f"\n❌ 安装失败，清理临时目录...")
+            if deps_path_temp.exists():
+                shutil.rmtree(deps_path_temp)
             result['failed'] = to_install
             raise e
         
