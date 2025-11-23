@@ -120,6 +120,7 @@ class DependencyInstaller:
         packages = group_config.get('packages', [])
         index_url = group_config.get('index_url')
         description = group_config.get('description', '')
+        no_deps = group_config.get('no_deps', False)  # 是否跳过依赖检查
         
         if not packages:
             print(f"\n⏭️  跳过空组: {group_name}")
@@ -132,6 +133,8 @@ class DependencyInstaller:
         print(f"   包数量: {len(packages)}")
         if index_url:
             print(f"   索引 URL: {index_url}")
+        if no_deps:
+            print(f"   ⚠️  跳过依赖检查 (--no-deps)")
         print(f"{'─'*60}")
         
         # 构建 pip install 命令
@@ -143,6 +146,10 @@ class DependencyInstaller:
         # 添加目标目录
         if target_dir:
             cmd.extend(['-t', target_dir])
+        
+        # 添加 --no-deps 选项
+        if no_deps:
+            cmd.append('--no-deps')
         
         # 添加索引 URL
         if index_url:

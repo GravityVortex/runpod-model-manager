@@ -673,6 +673,7 @@ class VolumeManager:
                 group_config = groups[group_name]
                 group_packages = group_config.get('packages', [])
                 index_url = group_config.get('index_url')
+                no_deps = group_config.get('no_deps', False)
                 
                 # 找出这个组中需要安装/更新的包
                 group_to_install = [pkg for pkg in to_install if pkg in group_packages]
@@ -681,6 +682,8 @@ class VolumeManager:
                     continue
                 
                 print(f"\n   📦 组: {group_name} ({len(group_to_install)} 个包)")
+                if no_deps:
+                    print(f"      ⚠️  跳过依赖检查 (--no-deps)")
                 
                 import sys
                 cmd = [
@@ -689,6 +692,10 @@ class VolumeManager:
                     '--target', str(deps_path),  # 直接安装到正式目录
                     '--upgrade',  # 使用 --upgrade 确保版本更新
                 ]
+                
+                # 添加 --no-deps 选项
+                if no_deps:
+                    cmd.append('--no-deps')
                 
                 # 添加索引源
                 if index_url:
