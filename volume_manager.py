@@ -42,16 +42,36 @@ class VolumeManager:
     
     def _load_metadata(self, project_name: str, python_version: Optional[str] = None) -> Dict:
         """
-        加载项目元数据
+        加载项目元数据（兼容旧格式）
         
         Args:
             project_name: 项目名称
             python_version: Python 版本（如 '3.10'）
         """
+        # 先尝试读取新格式（带 Python 版本）
         metadata_file = self._get_project_metadata_file(project_name, python_version)
         if metadata_file.exists():
             with open(metadata_file, 'r') as f:
                 return json.load(f)
+        
+        # 如果新格式不存在，尝试读取旧格式并迁移
+        if python_version:
+            old_metadata_file = self._get_project_metadata_file(project_name, None)
+            if old_metadata_file.exists():
+                print(f"   📋 检测到旧格式元数据，正在迁移...")
+                with open(old_metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                
+                # 添加 Python 版本信息
+                metadata['python_version'] = python_version
+                
+                # 保存为新格式
+                self._save_metadata(project_name, metadata, python_version)
+                print(f"   ✅ 元数据已迁移到新格式: {metadata_file.name}")
+                
+                return metadata
+        
+        # 都不存在，返回空元数据
         return {
             'project': project_name,
             'python_version': python_version,
