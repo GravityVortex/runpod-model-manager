@@ -154,28 +154,55 @@ class VolumeManager:
         
         try:
             print(f"🚀 开始安装 {len(to_install)} 个依赖...")
+            print(f"📍 命令: {' '.join(cmd[:5])}...")
             
-            # 使用 subprocess.run 而不是 os.system，因为命令可能很长
-            result_proc = subprocess.run(cmd, capture_output=False, text=True)
+            # 使用 Popen 实时输出，避免缓冲
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
             
-            if result_proc.returncode != 0:
-                raise Exception(f"pip 安装失败，返回码: {result_proc.returncode}")
+            # 实时打印输出
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    print(line.rstrip())
+            
+            process.wait()
+            if process.returncode != 0:
+                raise Exception(f"pip 安装失败，返回码: {process.returncode}")
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
-            # 替换原目录
-            print(f"\n🔄 替换原依赖目录...")
-            import time
+            # 替换原目录（跳过删除，直接重命名覆盖）
+            print(f"\n🔄 替换依赖目录...")
             
-            # 删除旧目录
             if deps_path.exists():
-                print(f"   - 删除旧目录: {deps_path.name}")
-                shutil.rmtree(deps_path)
-            
-            # 重命名临时目录为正式目录
-            print(f"   - 重命名临时目录为: {deps_path.name}")
-            deps_path_temp.rename(deps_path)
+                # 先重命名旧目录为备份
+                deps_path_backup = deps_path.parent / f'{project_name}_old'
+                print(f"   - 备份旧目录: {deps_path.name} -> {deps_path_backup.name}")
+                
+                # 如果备份目录存在，先删除
+                if deps_path_backup.exists():
+                    shutil.rmtree(deps_path_backup)
+                
+                # 重命名旧目录为备份
+                deps_path.rename(deps_path_backup)
+                
+                # 重命名临时目录为正式目录
+                print(f"   - 激活新目录: {deps_path_temp.name} -> {deps_path.name}")
+                deps_path_temp.rename(deps_path)
+                
+                # 异步删除备份目录（不等待）
+                print(f"   - 后台删除备份目录...")
+                import threading
+                def delete_backup():
+                    try:
+                        shutil.rmtree(deps_path_backup)
+                    except:
+                        pass
+                threading.Thread(target=delete_backup, daemon=True).start()
+            else:
+                # 直接重命名
+                print(f"   - 激活新目录: {deps_path_temp.name} -> {deps_path.name}")
+                deps_path_temp.rename(deps_path)
             
             print(f"✅ 依赖安装完成！")
             
