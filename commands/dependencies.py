@@ -96,9 +96,10 @@ def install_dependencies(args):
                 install_result = subprocess.run(install_cmd)
                 
                 if install_result.returncode != 0:
-                    print(f"\n❌ 自动安装失败")
-                    print(f"\n请手动安装:")
+                    print(f"\n❌ 管理工具依赖安装失败")
+                    print(f"\n请手动安装后重试:")
                     print(f"   {python_cmd} -m pip install -r requirements.txt")
+                    print(f"\n或切换到已安装依赖的 Python 版本")
                     sys.exit(1)
                 
                 print(f"\n✅ 管理工具依赖安装完成")
@@ -169,10 +170,13 @@ def install_dependencies(args):
             install_result = subprocess.run(install_cmd)
             
             if install_result.returncode != 0:
-                print(f"\n⚠️  管理工具依赖安装失败，但仍会继续运行")
-                print(f"   后续可能会遇到 import 错误")
-            else:
-                print(f"✅ 管理工具依赖安装完成")
+                print(f"\n❌ 管理工具依赖安装失败")
+                print(f"\n请手动安装后重试:")
+                print(f"   python{required_version} -m pip install -r requirements.txt")
+                print(f"\n或切换到已安装依赖的 Python 版本")
+                sys.exit(1)
+            
+            print(f"✅ 管理工具依赖安装完成")
             
             print(f"\n   使用 python{required_version} 重新运行...")
             print()
