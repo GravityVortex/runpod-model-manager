@@ -19,14 +19,20 @@
 runpod-model-manager/
 ├── volume_cli.py            # 统一 CLI 入口
 ├── volume_manager.py        # Volume 增量管理
+├── modelscope_patch.py      # ModelScope 兼容性补丁
+├── requirements.txt         # 管理工具依赖（modelscope、huggingface-hub）
 ├── commands/                # CLI 命令模块
 ├── downloaders/             # 下载器模块
 └── projects/                # 项目配置
     ├── speaker_diarization/ # 示例项目
     │   ├── config.py
-    │   └── requirements.txt
+    │   └── requirements.txt # 项目业务依赖
     └── your_project/        # 添加更多项目
 ```
+
+**依赖说明**：
+- 📦 **根目录 `requirements.txt`**：运行 `volume_cli.py` 需要的依赖（modelscope、huggingface-hub）
+- 📦 **项目目录 `requirements.txt`**：项目业务代码需要的依赖（torch、transformers 等）
 
 ## 🚀 快速开始
 
@@ -42,7 +48,10 @@ cd /workspace
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 2. 一键设置项目（依赖+模型）
+# 2. 安装管理工具依赖
+pip install -r requirements.txt
+
+# 3. 一键设置项目（依赖+模型）
 python3 volume_cli.py setup --project speaker-diarization
 
 # 或分步执行：
