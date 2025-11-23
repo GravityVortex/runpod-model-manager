@@ -89,14 +89,14 @@ class VolumeManager:
         force: bool = False
     ) -> Dict:
         """
-        增量安装依赖
+        安装依赖（使用临时目录策略）
         
         Args:
             project_name: 项目名称
             dependencies: 依赖列表
             python_version: Python 版本 (如 '3.10')
             mirror: PyPI 镜像源
-            force: 强制重新安装所有依赖
+            force: 保留参数兼容性
             
         Returns:
             安装结果统计
@@ -105,11 +105,6 @@ class VolumeManager:
         deps_path = self.volume_path / 'python-deps' / f'py{python_version}' / project_name
         deps_path_temp = self.volume_path / 'python-deps' / f'py{python_version}' / f'{project_name}_tmp'
         deps_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 检查依赖变化
-        changed, added, removed = self.check_dependencies_changed(
-            project_name, dependencies
-        )
         
         result = {
             'total': len(dependencies),
@@ -124,29 +119,11 @@ class VolumeManager:
         if deps_path_temp.exists():
             shutil.rmtree(deps_path_temp)
         
-        # 如果不是强制安装且依赖没有变化，跳过
-        if not force and not changed:
-            print(f"\n✅ 依赖已是最新，无需安装")
-            result['skipped'] = len(dependencies)
-            return result
-        
         # 创建临时目录
         deps_path_temp.mkdir(parents=True, exist_ok=True)
         
-        # 如果旧目录存在且不是强制重装，先复制已有的依赖到临时目录（增量更新）
-        if deps_path.exists() and not force:
-            print(f"\n� 复制已有依赖到临时目录...")
-            import time
-            start_time = time.time()
-            shutil.copytree(deps_path, deps_path_temp, dirs_exist_ok=True)
-            print(f"   ✓ 复制完成 ({time.time() - start_time:.1f}秒)")
-            # 增量模式：只安装新增的包
-            to_install = list(added)
-        else:
-            # 全新安装或强制重装：安装所有包
-            to_install = dependencies
-            if removed:
-                result['removed'] = len(removed)
+        # 直接安装所有依赖到临时目录
+        to_install = dependencies
         
         # 安装依赖
         print(f"\n📦 待安装依赖: {len(to_install)}")
@@ -167,12 +144,8 @@ class VolumeManager:
             f'--target={deps_path_temp}',  # 安装到临时目录
         ]
         
-        # 增量模式优化
-        if force:
-            cmd.append('--upgrade')  # 强制模式：升级所有包
-        else:
-            # 增量模式：使用 --exists-action i 忽略已存在的包
-            cmd.extend(['--exists-action', 'i'])  # ignore 已存在的包，不报警告
+        # 总是使用 upgrade 确保获取正确版本
+        cmd.append('--upgrade')
         
         if mirror:
             cmd.extend(['-i', mirror])
@@ -180,10 +153,7 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            mode = "强制模式" if force else "增量模式"
-            print(f"🚀 开始安装 {len(to_install)} 个依赖 ({mode})")
-            if not force:
-                print(f"📝 仅安装新增的包: {', '.join(to_install[:5])}{'...' if len(to_install) > 5 else ''}")
+            print(f"🚀 开始安装 {len(to_install)} 个依赖...")
             
             # 使用 subprocess.run 而不是 os.system，因为命令可能很长
             result_proc = subprocess.run(cmd, capture_output=False, text=True)
