@@ -88,7 +88,6 @@ def install_dependencies(args):
                 print()
                 
                 # 自动安装根目录依赖
-                import os
                 root_requirements = os.path.join(os.getcwd(), "requirements.txt")
                 install_cmd = [python_cmd, "-m", "pip", "install", "-r", root_requirements]
                 
