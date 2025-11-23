@@ -163,6 +163,7 @@ class VolumeManager:
         cmd = [
             sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
+            '--upgrade',  # 强制升级，覆盖已存在的包
             f'--target={deps_path}',
         ]
         
@@ -172,24 +173,9 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            # 使用 Popen 实时显示 pip 输出
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
-            
-            # 实时打印输出
-            for line in process.stdout:
-                print(line, end='', flush=True)
-            
-            # 等待进程结束
-            return_code = process.wait()
-            if return_code != 0:
-                raise subprocess.CalledProcessError(return_code, cmd)
+            # 直接运行 pip，保留 TTY 连接以显示进度条
+            # stdout 和 stderr 设为 None，直接输出到终端
+            subprocess.run(cmd, check=True)
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
