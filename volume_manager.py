@@ -172,7 +172,25 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            subprocess.run(cmd, check=True)
+            # 使用 Popen 实时显示 pip 输出
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # 实时打印输出
+            for line in process.stdout:
+                print(line, end='', flush=True)
+            
+            # 等待进程结束
+            return_code = process.wait()
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, cmd)
+            
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
@@ -298,15 +316,32 @@ class VolumeManager:
             'last_updated': metadata.get('last_updated'),
         }
         
-        # 计算依赖大小
+        # 计算依赖大小（跨平台兼容）
         if deps_path.exists():
-            result = subprocess.run(
-                ['du', '-sh', str(deps_path)],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                stats['dependencies_size'] = result.stdout.split()[0]
+            try:
+                import platform
+                if platform.system() == 'Windows':
+                    # Windows 下手动计算目录大小
+                    total_size = sum(f.stat().st_size for f in deps_path.rglob('*') if f.is_file())
+                    # 转换为人类可读格式
+                    for unit in ['B', 'KB', 'MB', 'GB']:
+                        if total_size < 1024.0:
+                            stats['dependencies_size'] = f"{total_size:.1f}{unit}"
+                            break
+                        total_size /= 1024.0
+                else:
+                    # Linux/Mac 使用 du 命令
+                    result = subprocess.run(
+                        ['du', '-sh', str(deps_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        stats['dependencies_size'] = result.stdout.split()[0]
+            except Exception:
+                # 如果计算失败，跳过大小统计
+                pass
         
         return stats
     
