@@ -174,16 +174,22 @@ class VolumeManager:
         
         try:
             print(f"🚀 开始安装 {len(to_install)} 个依赖...")
+            print(f"执行命令: {' '.join(cmd[:5])}... [{len(to_install)} packages]")
             
-            # 使用 subprocess.run 直接运行，不要用 Popen
-            subprocess.run(cmd, check=True)
+            # 使用 os.system 直接运行命令，避免 subprocess 的问题
+            import os
+            cmd_str = ' '.join(cmd)
+            return_code = os.system(cmd_str)
+            
+            if return_code != 0:
+                raise Exception(f"pip 安装失败，返回码: {return_code}")
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
             print(f"✅ 依赖安装完成！")
             
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             result['failed'] = to_install
             raise e
         
