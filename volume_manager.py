@@ -187,18 +187,10 @@ class VolumeManager:
             
             print(f"\n✅ 依赖安装完成")
             
-            # 更新元数据
+            # 快速更新元数据（不打印进度）
             metadata = self._load_metadata(project_name)
-            metadata['python_version'] = python_version_actual  # 记录实际使用的版本
-            for dep in to_install:
-                metadata['dependencies'][dep] = {
-                    'installed_at': datetime.now().isoformat(),
-                    'python_version': python_version_actual
-                }
-            # 移除已删除的依赖记录
-            for dep in removed:
-                metadata['dependencies'].pop(dep, None)
-            
+            metadata['python_version'] = python_version_actual
+            metadata['last_updated'] = datetime.now().isoformat()
             self._save_metadata(project_name, metadata)
             
         except subprocess.CalledProcessError as e:
@@ -290,32 +282,8 @@ class VolumeManager:
             'last_updated': metadata.get('last_updated'),
         }
         
-        # 计算依赖大小（跨平台兼容）
-        if deps_path.exists():
-            try:
-                import platform
-                if platform.system() == 'Windows':
-                    # Windows 下手动计算目录大小
-                    total_size = sum(f.stat().st_size for f in deps_path.rglob('*') if f.is_file())
-                    # 转换为人类可读格式
-                    for unit in ['B', 'KB', 'MB', 'GB']:
-                        if total_size < 1024.0:
-                            stats['dependencies_size'] = f"{total_size:.1f}{unit}"
-                            break
-                        total_size /= 1024.0
-                else:
-                    # Linux/Mac 使用 du 命令
-                    result = subprocess.run(
-                        ['du', '-sh', str(deps_path)],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    if result.returncode == 0:
-                        stats['dependencies_size'] = result.stdout.split()[0]
-            except Exception:
-                # 如果计算失败，跳过大小统计
-                pass
+        # 跳过目录大小计算（太慢）
+        # 如果需要查看大小，手动运行 du -sh 命令
         
         return stats
     

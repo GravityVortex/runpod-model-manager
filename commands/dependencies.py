@@ -199,20 +199,9 @@ def install_dependencies(args):
         print("\n" + "=" * 60)
         print("✅ 安装完成！")
         print("=" * 60)
-        print(f"📊 统计:")
-        print(f"  总计: {result['total']}")
-        print(f"  安装: {result['installed']}")
-        print(f"  跳过: {result['skipped']}")
-        if result['removed']:
-            print(f"  移除: {result['removed']}")
-        
-        # 显示项目统计
-        stats = manager.get_project_stats(args.project)
-        if 'dependencies_size' in stats:
-            print(f"\n💾 占用空间: {stats['dependencies_size']}")
+        print(f"📊 统计: 总计 {result['total']}, 安装 {result['installed']}, 跳过 {result['skipped']}")
         
         print(f"\n📝 使用说明:")
-        print(f"在 Dockerfile 中添加:")
         print(f"  FROM python:{required_version}")
         print(f"  ENV PYTHONPATH=/runpod-volume/python-deps/py{required_version}/{args.project}:$PYTHONPATH")
         
