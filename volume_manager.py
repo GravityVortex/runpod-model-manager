@@ -173,25 +173,15 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            # 使用 Popen 实时显示 pip 输出和进度条
-            # 不捕获输出，直接连接到父进程的 stdout/stderr
-            process = subprocess.Popen(cmd)
+            print(f"🚀 开始安装 {len(to_install)} 个依赖...")
             
-            # 等待进程结束
-            return_code = process.wait()
-            if return_code != 0:
-                raise subprocess.CalledProcessError(return_code, cmd)
+            # 使用 subprocess.run 直接运行，不要用 Popen
+            subprocess.run(cmd, check=True)
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
-            print(f"\n✅ 依赖安装完成")
-            
-            # 快速更新元数据（不打印进度）
-            metadata = self._load_metadata(project_name)
-            metadata['python_version'] = python_version_actual
-            metadata['last_updated'] = datetime.now().isoformat()
-            self._save_metadata(project_name, metadata)
+            print(f"✅ 依赖安装完成！")
             
         except subprocess.CalledProcessError as e:
             result['failed'] = to_install
