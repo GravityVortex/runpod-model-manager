@@ -185,30 +185,7 @@ class VolumeManager:
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
             
-            # 验证安装的 Python 版本（快速检查，不扫描整个目录）
-            print(f"\n🔍 验证安装...")
-            # 只检查前几个包，避免扫描整个目录太慢
-            checked = False
-            for item in deps_path.iterdir():
-                if item.is_dir() and not item.name.endswith('.dist-info'):
-                    # 只检查这个包目录下的 .so 文件
-                    so_files = list(item.glob('**/*.so'))[:1]  # 只取第一个
-                    if so_files:
-                        first_so = so_files[0].name
-                        print(f"   检查扩展模块: {first_so}")
-                        if f'cpython-{sys.version_info.major}{sys.version_info.minor}' in first_so:
-                            print(f"   ✓ 扩展模块版本匹配: cp{sys.version_info.major}{sys.version_info.minor}")
-                        elif 'cpython' in first_so:
-                            import re
-                            match = re.search(r'cpython-(\d+)(\d+)', first_so)
-                            if match:
-                                print(f"   ⚠️  警告：扩展模块版本不匹配！")
-                                print(f"      期望: cp{sys.version_info.major}{sys.version_info.minor}")
-                                print(f"      实际: cp{match.group(1)}{match.group(2)}")
-                        checked = True
-                        break  # 只检查一个就够了
-            if not checked:
-                print(f"   ⏭️  未发现需要检查的扩展模块")
+            print(f"\n✅ 依赖安装完成")
             
             # 更新元数据
             metadata = self._load_metadata(project_name)
