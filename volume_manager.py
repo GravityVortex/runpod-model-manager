@@ -83,6 +83,7 @@ class VolumeManager:
         原理：
         - 将 __release_datetime__ 改为过去的日期（如 2024-01-01）
         - ModelScope 判断为正式版本，跳过 AST 扫描
+        - 删除旧的 AST 索引缓存，避免触发更新扫描
         - 避免 Python 3.10/3.11 环境下的 type_params AttributeError
         
         Args:
@@ -95,11 +96,21 @@ class VolumeManager:
         
         try:
             import re
+            import shutil
             content = version_file.read_text(encoding='utf-8')
             
             # 检查是否已修改
             if '# PATCHED' in content:
                 print(f"   ℹ️  ModelScope 版本已修复")
+                # 即使已修复，也检查并删除 AST 缓存
+                ast_cache = self.volume_path / 'models' / 'ast_indexer'
+                if ast_cache.exists():
+                    print(f"   🗑️  删除 AST 索引缓存...")
+                    try:
+                        shutil.rmtree(ast_cache)
+                        print(f"   ✅ AST 缓存已删除")
+                    except Exception as e:
+                        print(f"   ⚠️  删除缓存失败: {e}")
                 return
             
             # 修改发布日期为过去的日期
@@ -111,7 +122,7 @@ class VolumeManager:
                 version_file.write_text(new_content, encoding='utf-8')
                 print(f"   ✅ ModelScope 已标记为正式版本（跳过 AST 扫描）")
                 print(f"   ℹ️  原理：发布日期在过去 → 正式版本 → 跳过 AST 扫描")
-
+                
                 # 🔥 关键：删除 AST 索引缓存
                 ast_cache = self.volume_path / 'models' / 'ast_indexer'
                 if ast_cache.exists():

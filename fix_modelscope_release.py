@@ -48,6 +48,8 @@ def fix_modelscope(project_name, python_version='3.10'):
     
     if '# PATCHED' in content:
         print("   ℹ️  已修复，无需重复操作")
+        # 即使已修复，也检查并删除 AST 缓存
+        _delete_ast_cache(deps_base)
         return True
     
     pattern = r"__release_datetime__\s*=\s*['\"].*?['\"]"
@@ -60,6 +62,35 @@ def fix_modelscope(project_name, python_version='3.10'):
     
     version_file.write_text(new_content, encoding='utf-8')
     print("   ✅ 修复完成")
+    
+    # 🔥 关键：删除 AST 索引缓存
+    _delete_ast_cache(deps_base)
+    
+    return True
+
+def _delete_ast_cache(deps_base):
+    """删除 AST 索引缓存"""
+    import shutil
+    
+    # 尝试多个可能的 Volume 根目录
+    volume_candidates = [
+        Path(deps_base).parent.parent / 'models' / 'ast_indexer',  # /xxx/python-deps -> /xxx/models/ast_indexer
+        Path('/runpod-volume') / 'models' / 'ast_indexer',
+        Path('/workspace') / 'models' / 'ast_indexer',
+    ]
+    
+    for ast_cache in volume_candidates:
+        if ast_cache.exists():
+            print(f"\n🗑️  删除旧的 AST 索引缓存: {ast_cache}")
+            try:
+                shutil.rmtree(ast_cache)
+                print(f"   ✅ AST 缓存已删除")
+                return True
+            except Exception as e:
+                print(f"   ⚠️  删除缓存失败: {e}")
+                return False
+    
+    print(f"\n   ℹ️  未找到 AST 索引缓存（可能尚未生成）")
     return True
 
 if __name__ == '__main__':
