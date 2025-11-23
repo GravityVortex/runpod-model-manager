@@ -107,7 +107,10 @@ class VolumeManager:
                 if ast_cache.exists():
                     print(f"   🗑️  删除 AST 索引缓存...")
                     try:
-                        shutil.rmtree(ast_cache)
+                        if ast_cache.is_dir():
+                            shutil.rmtree(ast_cache)
+                        else:
+                            ast_cache.unlink()
                         print(f"   ✅ AST 缓存已删除")
                     except Exception as e:
                         print(f"   ⚠️  删除缓存失败: {e}")
@@ -128,7 +131,10 @@ class VolumeManager:
                 if ast_cache.exists():
                     print(f"   🗑️  删除旧的 AST 索引缓存...")
                     try:
-                        shutil.rmtree(ast_cache)
+                        if ast_cache.is_dir():
+                            shutil.rmtree(ast_cache)
+                        else:
+                            ast_cache.unlink()
                         print(f"   ✅ AST 缓存已删除")
                     except Exception as e:
                         print(f"   ⚠️  删除缓存失败: {e}")

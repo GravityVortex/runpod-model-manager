@@ -69,7 +69,7 @@ def fix_modelscope(project_name, python_version='3.10'):
     return True
 
 def _delete_ast_cache(deps_base):
-    """删除 AST 索引缓存"""
+    """删除 AST 索引缓存（可能是文件或目录）"""
     import shutil
     
     # 尝试多个可能的 Volume 根目录
@@ -83,7 +83,12 @@ def _delete_ast_cache(deps_base):
         if ast_cache.exists():
             print(f"\n🗑️  删除旧的 AST 索引缓存: {ast_cache}")
             try:
-                shutil.rmtree(ast_cache)
+                if ast_cache.is_dir():
+                    # 是目录，使用 rmtree
+                    shutil.rmtree(ast_cache)
+                else:
+                    # 是文件，使用 remove
+                    ast_cache.unlink()
                 print(f"   ✅ AST 缓存已删除")
                 return True
             except Exception as e:
