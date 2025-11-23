@@ -141,6 +141,8 @@ class VolumeManager:
         cmd = [
             sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
+            '--ignore-installed',  # 忽略系统已安装的包
+            '--force-reinstall',  # 强制重新安装，确保版本正确
             f'--target={deps_path_temp}',  # 安装到临时目录
         ]
         
