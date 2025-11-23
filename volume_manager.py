@@ -163,9 +163,15 @@ class VolumeManager:
         cmd = [
             sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
-            '--upgrade',  # 强制升级，覆盖已存在的包
             f'--target={deps_path}',
         ]
+        
+        # 增量模式优化
+        if force:
+            cmd.append('--upgrade')  # 强制模式：升级所有包
+        else:
+            # 增量模式：使用 --exists-action i 忽略已存在的包
+            cmd.extend(['--exists-action', 'i'])  # ignore 已存在的包，不报警告
         
         if mirror:
             cmd.extend(['-i', mirror])
@@ -173,16 +179,16 @@ class VolumeManager:
         cmd.extend(to_install)
         
         try:
-            print(f"🚀 开始安装 {len(to_install)} 个依赖...")
-            print(f"执行命令: {' '.join(cmd[:5])}... [{len(to_install)} packages]")
+            mode = "强制模式" if force else "增量模式"
+            print(f"🚀 开始安装 {len(to_install)} 个依赖 ({mode})")
+            if not force:
+                print(f"📝 仅安装新增的包: {', '.join(to_install[:5])}{'...' if len(to_install) > 5 else ''}")
             
-            # 使用 os.system 直接运行命令，避免 subprocess 的问题
-            import os
-            cmd_str = ' '.join(cmd)
-            return_code = os.system(cmd_str)
+            # 使用 subprocess.run 而不是 os.system，因为命令可能很长
+            result_proc = subprocess.run(cmd, capture_output=False, text=True)
             
-            if return_code != 0:
-                raise Exception(f"pip 安装失败，返回码: {return_code}")
+            if result_proc.returncode != 0:
+                raise Exception(f"pip 安装失败，返回码: {result_proc.returncode}")
             
             result['installed'] = len(to_install)
             result['skipped'] = result['total'] - result['installed']
