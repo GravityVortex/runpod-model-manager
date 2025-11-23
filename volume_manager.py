@@ -111,6 +111,16 @@ class VolumeManager:
                 version_file.write_text(new_content, encoding='utf-8')
                 print(f"   ✅ ModelScope 已标记为正式版本（跳过 AST 扫描）")
                 print(f"   ℹ️  原理：发布日期在过去 → 正式版本 → 跳过 AST 扫描")
+
+                # 🔥 关键：删除 AST 索引缓存
+                ast_cache = self.volume_path / 'models' / 'ast_indexer'
+                if ast_cache.exists():
+                    print(f"   🗑️  删除旧的 AST 索引缓存...")
+                    try:
+                        shutil.rmtree(ast_cache)
+                        print(f"   ✅ AST 缓存已删除")
+                    except Exception as e:
+                        print(f"   ⚠️  删除缓存失败: {e}")
             else:
                 print(f"   ⚠️  未找到 __release_datetime__ 或格式变化")
         
