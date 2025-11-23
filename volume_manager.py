@@ -141,13 +141,12 @@ class VolumeManager:
         cmd = [
             sys.executable, '-m', 'pip', 'install',
             '--no-cache-dir',
+            '--progress-bar', 'off',  # 禁用进度条
             '--ignore-installed',  # 忽略系统已安装的包
             '--force-reinstall',  # 强制重新安装，确保版本正确
             f'--target={deps_path_temp}',  # 安装到临时目录
+            '--upgrade',  # 确保获取正确版本
         ]
-        
-        # 总是使用 upgrade 确保获取正确版本
-        cmd.append('--upgrade')
         
         if mirror:
             cmd.extend(['-i', mirror])
@@ -156,13 +155,15 @@ class VolumeManager:
         
         try:
             print(f"🚀 开始安装 {len(to_install)} 个依赖...")
-            print(f"📍 命令: {' '.join(cmd[:5])}...")
+            print(f"📍 执行中，请等待...\n")
+            import sys
+            sys.stdout.flush()  # 强制刷新输出
             
-            # 使用 Popen，但不捕获输出，直接继承父进程的 stdout/stderr
-            process = subprocess.Popen(cmd)
+            # 直接使用 subprocess.call，最简单最可靠
+            return_code = subprocess.call(cmd)
             
-            # 等待进程完成
-            return_code = process.wait()
+            print(f"\n📍 pip 进程退出码: {return_code}")
+            sys.stdout.flush()
             
             if return_code != 0:
                 raise Exception(f"pip 安装失败，返回码: {return_code}")
