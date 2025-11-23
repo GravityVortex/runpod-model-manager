@@ -203,13 +203,22 @@ PROJECTS = [
 
 ---
 
-## 文档
+## 📖 文档
 
-- [CLI_GUIDE.md](./CLI_GUIDE.md) - 完整 CLI 使用指南
-- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - 项目结构说明
-- [DEPENDENCY_MANAGEMENT.md](./DEPENDENCY_MANAGEMENT.md) - 配置化依赖管理系统 ⭐
-- [PYTHON_VERSION_HANDLING.md](./PYTHON_VERSION_HANDLING.md) - Python 版本检测和处理
+- **[COMPLETE_GUIDE.md](./COMPLETE_GUIDE.md)** - 完整操作指南（详细 RunPod 步骤）⭐
+- [MODELSCOPE_AST_FIX.md](./MODELSCOPE_AST_FIX.md) - ModelScope 兼容性技术文档
 - [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md) - 添加项目详细指南
+
+---
+
+## 🔗 关联业务项目
+
+本工具负责依赖和模型管理，具体业务实现在独立项目中：
+
+- **说话人分割项目**: [GravityVortex/zhesheng-model-speaker-reg](https://github.com/GravityVortex/zhesheng-model-speaker-reg)
+  - 业务代码（api.py, mydemo.py）
+  - Serverless 部署配置（Dockerfile.serverless）
+  - 完整部署文档（RUNPOD_DEPLOY.md）
 
 ---
 
@@ -218,7 +227,7 @@ PROJECTS = [
 ```
 /runpod-volume/ 或 /workspace/
 ├── .metadata/                    # 元数据（增量追踪）
-├── python-deps/                  # Python 依赖
+├── python-deps/                  # Python 依赖（按版本隔离）
 │   ├── py3.10/
 │   │   └── speaker-diarization/
 │   └── py3.11/
