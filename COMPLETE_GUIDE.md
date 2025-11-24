@@ -291,27 +291,57 @@ class MyProject(BaseProject):
 **3. 创建依赖配置 `dependencies.yaml`**
 
 ```yaml
+# 依赖配置文件 - 支持多索引源、no-deps 等高级特性
+
 groups:
+  # PyTorch 相关包（从 PyTorch 官方索引安装）
   pytorch:
     index_url: "https://download.pytorch.org/whl/cu121"
     packages:
       - torch==2.4.1
+      - torchaudio==2.4.1
+    description: "PyTorch with CUDA 12.1 support"
   
+  # 标准 PyPI 包
   standard:
-    index_url: null
+    index_url: null  # null 表示使用默认 PyPI 源
     packages:
       - transformers==4.35.0
       - fastapi
       - runpod
+    description: "Standard packages from PyPI"
+  
+  # 使用 --no-deps 安装（可选，用于解决依赖冲突）
+  special:
+    index_url: null
+    no_deps: true  # 跳过依赖检查
+    packages:
+      - your-package==1.0.0
+    description: "Packages with dependency conflicts"
+    # ⚠️ 使用 no_deps 前，确保该包的所有依赖已在其他组中显式声明
 
+# 安装顺序
 install_order:
   - pytorch
   - standard
+  - special  # no_deps 的包最后安装
 
+# 元数据
 metadata:
   project: my-project
   python_version: "3.10"
+  description: "My project dependencies"
 ```
+
+**配置说明**：
+- `index_url`: 索引源地址（`null` 表示默认 PyPI）
+- `no_deps`: 使用 `--no-deps` 安装，跳过依赖检查（可选）
+- `install_order`: 控制安装顺序
+
+**no_deps 使用场景**：
+- 包的依赖声明有问题（如 `funasr` 声明 `umap` 实际需要 `umap-learn`）
+- 需要精确控制依赖版本
+- 参考：`projects/speaker_diarization/dependencies.yaml` 中的 `funasr` 配置
 
 **4. 创建 `__init__.py`**
 

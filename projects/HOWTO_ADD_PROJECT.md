@@ -9,11 +9,11 @@ projects/
 ├── speaker_diarization/          # 项目目录（使用下划线）
 │   ├── __init__.py               # 导出配置类
 │   ├── config.py                 # 项目配置
-│   └── requirements.txt          # 依赖列表
+│   └── dependencies.yaml         # 依赖配置（支持多索引源、no-deps 等）
 ├── your_project/                 # 你的新项目
 │   ├── __init__.py
 │   ├── config.py
-│   └── requirements.txt
+│   └── dependencies.yaml
 └── base.py                       # 基类（不要修改）
 ```
 
@@ -57,10 +57,10 @@ class YourProject(BaseProject):
         return '3.10'  # 或 '3.11', '3.12' 等
     
     @property
-    def requirements_file(self):
-        """requirements.txt 路径"""
+    def dependencies_config(self):
+        """dependencies.yaml 路径"""
         current_dir = Path(__file__).parent
-        return str(current_dir / 'requirements.txt')
+        return str(current_dir / 'dependencies.yaml')
     
     @property
     def models(self):
@@ -134,33 +134,78 @@ __all__ = ['YourProject']
 
 ---
 
-## 步骤 4：创建 requirements.txt
+## 步骤 4：创建 dependencies.yaml
 
-### `projects/your_project/requirements.txt`
+### `projects/your_project/dependencies.yaml`
 
-```txt
-# 你的项目依赖
-# Python 3.10
+```yaml
+# 依赖配置文件
+# 支持从不同索引源安装不同的依赖包
 
-# 基础依赖
-transformers==4.35.0
-torch==2.1.0
+# 依赖组（按安装源分组）
+groups:
+  # PyTorch 相关包（需要从 PyTorch 官方索引安装）
+  pytorch:
+    index_url: "https://download.pytorch.org/whl/cu121"
+    packages:
+      - torch==2.4.1
+      - torchaudio==2.4.1
+    description: "PyTorch with CUDA 12.1 support"
+  
+  # 标准 PyPI 包（从默认源安装）
+  standard:
+    index_url: null  # null 表示使用默认 PyPI 源
+    packages:
+      - transformers==4.46.3
+      - fastapi==0.121.0
+      - uvicorn==0.33.0
+      - runpod
+    description: "Standard packages from PyPI"
+  
+  # 使用 --no-deps 安装的包（避免依赖冲突）
+  special:
+    index_url: null
+    no_deps: true  # 关键配置：跳过依赖检查
+    packages:
+      - your-special-package==1.0.0
+    description: "Packages installed with --no-deps"
+    # 注意：使用 no_deps 前，确保该包的所有依赖已在其他组中声明
 
-# API 服务（如果需要）
-fastapi
-uvicorn
+# 安装顺序（某些包需要先安装）
+install_order:
+  - pytorch    # 先安装 PyTorch
+  - standard   # 再安装其他包
+  - special    # 最后安装 no-deps 的包
 
-# RunPod
-runpod
-
-# 其他依赖
-# ...
+# 元数据
+metadata:
+  project: your-project
+  python_version: "3.10"
+  created: "2024-11-24"
+  description: "Your project dependencies"
 ```
 
-**提示**：
-- 建议指定版本号（`==`）
-- 可以添加注释（`#`）
-- 空行会被忽略
+**配置说明**：
+
+1. **groups**: 依赖分组
+   - `index_url`: 索引源地址（`null` 表示默认 PyPI）
+   - `packages`: 包列表
+   - `no_deps`: 是否使用 `--no-deps` 安装（可选）
+   - `description`: 组说明（可选）
+
+2. **install_order**: 安装顺序（数组）
+
+3. **metadata**: 元数据（可选）
+
+**no_deps 使用场景**：
+- 包的依赖声明有问题（如 `umap` vs `umap-learn`）
+- 需要精确控制依赖版本
+- 避免自动安装不需要的依赖
+
+⚠️ **使用 no_deps 的注意事项**：
+- 必须在其他组中显式声明该包的所有依赖
+- 参考该包的官方文档或 `setup.py` 确认依赖列表
+- 示例：`speaker_diarization/dependencies.yaml` 中的 `funasr` 配置
 
 ---
 
@@ -222,7 +267,7 @@ python3 volume_cli.py models download --project your-project
 projects/text_generation/
 ├── __init__.py
 ├── config.py
-└── requirements.txt
+└── dependencies.yaml
 ```
 
 **config.py**：
@@ -242,8 +287,8 @@ class TextGenerationProject(BaseProject):
         return '3.11'
     
     @property
-    def requirements_file(self):
-        return str(Path(__file__).parent / 'requirements.txt')
+    def dependencies_config(self):
+        return str(Path(__file__).parent / 'dependencies.yaml')
     
     @property
     def models(self):
@@ -259,16 +304,31 @@ class TextGenerationProject(BaseProject):
         ...
 ```
 
-**requirements.txt**：
-```txt
-# Text Generation 依赖
-transformers==4.36.0
-torch==2.1.0
-accelerate
-sentencepiece
-fastapi
-uvicorn
-runpod
+**dependencies.yaml**：
+```yaml
+groups:
+  pytorch:
+    index_url: "https://download.pytorch.org/whl/cu121"
+    packages:
+      - torch==2.1.0
+  
+  standard:
+    index_url: null
+    packages:
+      - transformers==4.36.0
+      - accelerate
+      - sentencepiece
+      - fastapi
+      - uvicorn
+      - runpod
+
+install_order:
+  - pytorch
+  - standard
+
+metadata:
+  project: text-generation
+  python_version: "3.11"
 ```
 
 **__init__.py**：
@@ -311,31 +371,61 @@ def name(self):
     return "text-generation"  # ✅ 可以
 ```
 
-### Q: requirements.txt 必须在项目目录吗？
+### Q: dependencies.yaml 必须在项目目录吗？
 
 **推荐放在项目目录**，但也可以指向其他位置：
 
 ```python
 @property
-def requirements_file(self):
+def dependencies_config(self):
     # 方式 1: 项目目录（推荐）
-    return str(Path(__file__).parent / 'requirements.txt')
+    return str(Path(__file__).parent / 'dependencies.yaml')
     
     # 方式 2: 绝对路径
-    return '/path/to/your/requirements.txt'
+    return '/path/to/your/dependencies.yaml'
     
     # 方式 3: 相对路径
-    return 'path/to/requirements.txt'
+    return 'path/to/dependencies.yaml'
 ```
 
-### Q: 能不定义 requirements.txt 吗？
+### Q: 能不定义 dependencies.yaml 吗？
 
 可以。如果不需要依赖管理，返回 `None`：
 
 ```python
 @property
-def requirements_file(self):
+def dependencies_config(self):
     return None
+```
+
+### Q: 什么时候应该使用 no_deps？
+
+**使用场景**：
+1. 包的依赖声明有问题（如 `funasr` 声明依赖 `umap`，但实际需要 `umap-learn`）
+2. 需要精确控制依赖版本，避免自动安装
+3. 包的某些依赖在特定环境不需要
+
+**示例**：
+```yaml
+groups:
+  # 先安装所有真实依赖
+  standard:
+    index_url: null
+    packages:
+      - umap-learn==0.5.7  # 真实需要的包
+      - numpy==1.23.5
+      - scipy==1.10.1
+  
+  # 再用 no_deps 安装有问题的包
+  special:
+    index_url: null
+    no_deps: true
+    packages:
+      - funasr==0.8.8  # 跳过其依赖检查
+
+install_order:
+  - standard
+  - special
 ```
 
 ### Q: download_models 必须这样写吗？
@@ -360,17 +450,26 @@ def requirements_file(self):
 
 ### 2. 版本管理
 
-```txt
-# ✅ 推荐：指定版本
-transformers==4.35.0
-torch==2.1.0
+```yaml
+# ✅ 推荐：指定精确版本
+groups:
+  standard:
+    packages:
+      - transformers==4.35.0
+      - torch==2.1.0
 
-# ⚠️  不推荐：不指定版本（可能升级导致不兼容）
-transformers
-torch
+# ⚠️ 不推荐：不指定版本（可能升级导致不兼容）
+groups:
+  standard:
+    packages:
+      - transformers  # 版本不确定，可能导致问题
+      - torch
 
-# ✅ 可以：指定范围
-transformers>=4.35.0,<5.0.0
+# ✅ 可以：指定版本范围
+groups:
+  standard:
+    packages:
+      - transformers>=4.35.0,<5.0.0
 ```
 
 ### 3. 文件组织
@@ -379,7 +478,7 @@ transformers>=4.35.0,<5.0.0
 projects/your_project/
 ├── __init__.py           # 简单导出
 ├── config.py             # 核心配置
-├── requirements.txt      # 依赖列表
+├── dependencies.yaml     # 依赖配置（支持多索引源、no-deps）
 └── README.md             # 项目说明（可选）
 ```
 
@@ -399,9 +498,9 @@ cp -r projects/speaker_diarization projects/your_project
 完成以下步骤：
 
 - [ ] 创建项目目录 `projects/your_project/`
-- [ ] 创建 `config.py`（配置类）
+- [ ] 创建 `config.py`（配置类，定义 `dependencies_config` 属性）
 - [ ] 创建 `__init__.py`（导出类）
-- [ ] 创建 `requirements.txt`（依赖列表）
+- [ ] 创建 `dependencies.yaml`（依赖配置，支持多索引源和 no_deps）
 - [ ] 在 `loader.py` 中注册项目
 - [ ] 测试配置加载
 - [ ] 使用 `volume_cli.py` 测试
