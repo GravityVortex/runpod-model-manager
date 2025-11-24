@@ -25,7 +25,7 @@
 
 2. **配置 Volume**：
    - **Name**: 随意命名（如 `ai-models-volume`）
-   - **Size**: 至少 15GB（推荐 20GB）
+   - **Size**: 至少 15GB（推荐 20GB），后期也能动态添加，可以先买小点的
    - **Region**: **选择你常用的地区**（如 `US-CA-1`）
 
 3. **点击 "Create"**，等待创建完成（约 10 秒）
@@ -33,7 +33,7 @@
 ⚠️ **重要注意事项**：
 - 💰 **地区选择**：选择价格便宜、网络快的地区
 - 📍 **地区一致**：后续所有 Pod 必须选择**相同地区**，否则无法挂载 Volume
-- 💾 **容量规划**：依赖约 800M，模型约 8-10GB，预留一些空间
+- 💾 **容量规划**：依赖约 800M，一个项目如果带有torch等机器学习模型，那么建议一个项目给到10G的空间
 
 ---
 
@@ -51,22 +51,35 @@
    - GPU：选择最便宜的即可（如 RTX 4000）
 
 3. **配置 Network Volume**：
-   - 在 "Network Volume" 部分
-   - 选择你刚创建的 Volume
-   - Mount Path: `/workspace`（必须是这个路径）
+   - 在 "Network Volume" 部分（界面上方横着的）
 
-4. **点击 "Deploy"**，等待 Pod 启动（约 30 秒）
+   ![image-20251124143350685](/Users/dashuai/Library/Application Support/typora-user-images/image-20251124143350685.png)
+
+   - 选择你刚创建的 Volume
+
+4. 滚动到页面下方，Pod Template需要根据你依赖的cuda和python版本来选择，比如你的是cu121，python310（插一嘴，这个配置尽量其他模型就保持不变了），那么就选择**runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04**，减少后期安装依赖不必要的麻烦
+
+![image-20251124144216800](/Users/dashuai/Library/Application Support/typora-user-images/image-20251124144216800.png)
+
+5. Instance Pricing，这里你就选择spot就好，怎么便宜怎么来
+
+6. **点击 "Deploy"**，等待 Pod 启动
 
 ⚠️ **注意事项**：
-- Volume 挂载路径必须是 `/workspace`（与配置一致）
+- Volume 挂载路径必须放在 `/workspace` 下面（cd /workspace）
 - GPU 选最便宜的即可，不影响安装速度
 - 临时 Pod 可以随时删除，数据永久保存在 Volume
 
 #### 1.2 打开 Web Terminal
 
 1. 在 Pods 列表中找到刚创建的 Pod
+
 2. 点击 **"Connect"** 按钮
-3. 选择 **"Start Web Terminal"**
+
+   ![image-20251124151718132](/Users/dashuai/Library/Application Support/typora-user-images/image-20251124151718132.png)
+
+3. 打开，稍等片刻后，点击 **"Open Web Terminal"**
+
 4. 等待终端加载完成
 
 #### 1.3 执行安装命令
@@ -79,7 +92,7 @@ cd /workspace
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 2. 安装管理工具依赖
+# 2. 安装管理工具依赖（按理说只做第一次）
 pip install -r requirements.txt
 
 # 3. 一键安装项目（依赖 + 模型）
