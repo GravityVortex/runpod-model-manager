@@ -129,7 +129,7 @@ du -sh /workspace/models/
 
 1. 返回 RunPod Pods 页面
 2. 找到刚才的临时 Pod
-3. 点击右侧 **"⋮"** → **"Stop"** → 确认删除
+3. 点击右侧 **"⋮"** → **"Terminate"** → 确认删除
 
 **重要**：Volume 中的依赖和模型已永久保存，删除 Pod 不影响。
 
@@ -146,8 +146,8 @@ du -sh /workspace/models/
 **关键配置**：
 ```dockerfile
 # Dockerfile.serverless 中设置环境变量指向 Volume
-ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH \
-    MODELSCOPE_CACHE=/runpod-volume/models
+ENV PYTHONPATH=/workspace/python-deps/py3.10/speaker-diarization:$PYTHONPATH \
+    MODELSCOPE_CACHE=/workspace/models
 ```
 
 ### 步骤3：增量更新
@@ -199,8 +199,8 @@ python3 volume_cli.py deps install --project speaker-diarization --force
 3. **Volume 路径约定**：
    ```bash
    # 两个项目使用统一的 Volume 路径
-   /runpod-volume/python-deps/py3.10/speaker-diarization
-   /runpod-volume/models
+   /workspace/python-deps/py3.10/speaker-diarization
+   /workspace/models
    ```
 
 ---
@@ -209,7 +209,7 @@ python3 volume_cli.py deps install --project speaker-diarization --force
 
 ### Volume 配置
 - 📍 **地区一致**：所有 Pod 必须与 Volume 在**同一地区**（这是最重要的！）
-- ✅ **路径一致**：所有 Pod 必须挂载到同一路径（`/workspace` 或 `/runpod-volume`）
+- ✅ **路径一致**：所有 Pod 必须挂载到 `/workspace` 路径
 - ✅ **容量预留**：至少 15GB（依赖 800M + 模型 8-10GB）
 - ✅ **数据持久**：删除 Pod 不影响 Volume 数据
 
@@ -231,7 +231,7 @@ python3 volume_cli.py deps install --project speaker-diarization --force
 ### Volume 目录结构
 
 ```
-/runpod-volume/ 或 /workspace/
+/workspace/
 ├── .metadata/                    # 元数据（追踪已安装的依赖）
 ├── python-deps/                  # Python 依赖（按版本隔离）
 │   ├── py3.10/
