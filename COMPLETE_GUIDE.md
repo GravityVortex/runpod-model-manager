@@ -1,53 +1,41 @@
-# RunPod Model Manager - 操作步骤
+# RunPod Model Manager - 操作指南
 
-## 这个项目是什么
+## 这是什么
 
-管理 RunPod Volume 上的 Python 依赖和 AI 模型。
-- 依赖和模型只装一次，永久保留
-- 更新时只装变化的部分
-- 不同项目依赖互不干扰
+在 RunPod Volume 上管理 Python 依赖和 AI 模型：
+- ✅ 依赖和模型只装一次，永久保留在 Volume
+- ✅ 更新时只装变化的部分（增量更新，节省时间）
+- ✅ 不同项目依赖独立隔离，互不干扰
 
-## Volume 目录结构
+---
 
-```
-/runpod-volume/ 或 /workspace/
-├── .metadata/                           # 元数据（追踪已安装的依赖）
-│   ├── speaker-diarization-py3.10.json # 每个项目+版本一个元数据文件
-│   └── text-generation-py3.11.json
-│
-├── python-deps/                         # Python 依赖（按版本隔离）
-│   ├── py3.10/
-│   │   └── speaker-diarization/        # 项目依赖目录
-│   │       ├── torch/
-│   │       ├── transformers/
-│   │       ├── funasr/
-│   │       └── ... (40+ 个包)
-│   └── py3.11/
-│       └── text-generation/
-│
-└── models/                              # AI 模型（所有项目共享）
-    └── hub/
-        ├── iic/speech_campplus_speaker-diarization_common/
-        ├── damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/
-        └── ... (更多模型)
-```
+## 快速上手
 
-## 当前项目：Speaker Diarization（说话人分割）
+### 步骤0：创建 Network Volume（一次性）
 
-识别音频中谁在什么时候说话。
+如果你还没有 Volume，需要先创建一个。
 
-依赖的模型（从 ModelScope 下载）：
-- speech_campplus_speaker-diarization_common
-- speech_fsmn_vad_zh-cn-16k-common-pytorch  
-- speech_campplus_sv_zh-cn_16k-common
-- speech_campplus-transformer_scl_zh-cn_16k-common
+#### 0.1 访问 Storage 页面
 
-依赖的 Python 包（40+ 个）：
-- PyTorch 2.4.1
-- FunASR 0.8.8
-- transformers、onnxruntime、librosa 等
+访问 RunPod 控制台：https://www.runpod.io/console/user/storage
 
-## 操作步骤
+#### 0.2 创建 Volume
+
+1. **点击 "+ Network Volume"**
+
+2. **配置 Volume**：
+   - **Name**: 随意命名（如 `ai-models-volume`）
+   - **Size**: 至少 15GB（推荐 20GB）
+   - **Region**: **选择你常用的地区**（如 `US-CA-1`）
+
+3. **点击 "Create"**，等待创建完成（约 10 秒）
+
+⚠️ **重要注意事项**：
+- 💰 **地区选择**：选择价格便宜、网络快的地区
+- 📍 **地区一致**：后续所有 Pod 必须选择**相同地区**，否则无法挂载 Volume
+- 💾 **容量规划**：依赖约 800M，模型约 8-10GB，预留一些空间
+
+---
 
 ### 步骤1：初始化 Volume（临时 Pod）
 
@@ -59,14 +47,20 @@
 
 2. **选择模板**：
    - 推荐：`RunPod PyTorch` 或任意带 Python 的镜像
+   - **Region**: **必须选择与 Volume 相同的地区**
    - GPU：选择最便宜的即可（如 RTX 4000）
 
 3. **配置 Network Volume**：
    - 在 "Network Volume" 部分
-   - 选择你的 Volume（如果没有，先创建一个 15GB+ 的 Volume）
-   - Mount Path: `/workspace`
+   - 选择你刚创建的 Volume
+   - Mount Path: `/workspace`（必须是这个路径）
 
 4. **点击 "Deploy"**，等待 Pod 启动（约 30 秒）
+
+⚠️ **注意事项**：
+- Volume 挂载路径必须是 `/workspace`（与配置一致）
+- GPU 选最便宜的即可，不影响安装速度
+- 临时 Pod 可以随时删除，数据永久保存在 Volume
 
 #### 1.2 打开 Web Terminal
 
@@ -97,6 +91,11 @@ python3 volume_cli.py setup --project speaker-diarization
 ```
 
 **等待安装完成**（约 10 分钟）
+
+⚠️ **安装过程说明**：
+- 首次安装约 10 分钟（下载 PyTorch 和模型较大）
+- 会自动检测并安装正确的 Python 版本
+- 出现 "Building wheel" 是正常现象，请耐心等待
 
 #### 1.4 验证安装
 
@@ -142,7 +141,7 @@ ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH
 
 ```bash
 # 1. 修改配置文件 projects/speaker_diarization/dependencies.yaml
-# 2. 创建临时 Pod，挂载同一个 Volume
+# 2. 创建临时 Pod，挂载同一个 Volume（地区必须一致）
 cd /workspace/runpod-model-manager
 git pull
 
@@ -154,113 +153,9 @@ python3 volume_cli.py deps install --project speaker-diarization
 python3 volume_cli.py deps install --project speaker-diarization --force
 ```
 
----
-
-## 技术架构
-
-### 🏗️ 核心模块
-
-```
-runpod-model-manager/
-├── volume_cli.py              # CLI 入口（argparse）
-├── volume_manager.py          # Volume 管理核心
-│   ├── _load_metadata()       # 加载元数据（追踪已安装的依赖）
-│   ├── check_dependencies_changed()  # 检测依赖变化
-│   ├── install_dependencies_from_config()  # 增量安装
-│   └── _fix_modelscope_release_date()  # ModelScope 兼容性修复
-├── dependency_installer.py    # 依赖安装器（解析 YAML）
-├── downloaders/               # 模型下载器
-│   ├── modelscope_downloader.py
-│   └── huggingface_downloader.py
-└── commands/                  # CLI 命令实现
-    ├── dependencies.py        # deps 命令
-    ├── models.py             # models 命令
-    └── setup.py              # setup 命令
-```
-
-### 🔄 增量安装原理
-
-```python
-# 伪代码
-def install_dependencies_from_config(project_name, config_file):
-    # 1. 读取元数据
-    old_deps = load_metadata(project_name)  # {'torch==2.4.0': {}, 'funasr==0.8.7': {}}
-    
-    # 2. 读取配置文件
-    new_deps = parse_yaml(config_file)  # ['torch==2.4.1', 'funasr==0.8.8', 'pandas==2.0.0']
-    
-    # 3. 比较变化
-    added = ['pandas==2.0.0']      # 新增的包
-    removed = []                   # 删除的包
-    updated = ['torch==2.4.1', 'funasr==0.8.8']  # 版本更新的包
-    
-    # 4. 决定安装策略
-    if removed:
-        # 有删除 → 全量重装（避免依赖残留）
-        full_reinstall()
-    elif added or updated:
-        # 只有新增/更新 → 增量安装（快速）
-        pip install --upgrade --target /volume/deps pandas==2.0.0 torch==2.4.1 funasr==0.8.8
-    else:
-        # 无变化 → 跳过
-        print("依赖未变化，跳过安装")
-    
-    # 5. 更新元数据
-    save_metadata(project_name, new_deps)
-```
-
-### 🎯 关键优化
-
-1. **直接在正式目录安装**（新）
-   - 旧方案：复制 5000+ 文件到临时目录 → 安装 → 替换（耗时 30s）
-   - 新方案：直接 `pip install --upgrade` 到正式目录（耗时 5s）
-   - 提升：6倍速度
-
-2. **按 Python 版本隔离元数据**
-   - 文件名：`speaker-diarization-py3.10.json`
-   - 避免不同版本的依赖冲突
-
-3. **支持 `--no-deps` 选项**
-   - 解决 funasr 的 `umap` vs `umap-learn` 包名问题
-   - 手动声明所有依赖，跳过 pip 依赖检查
-
-4. **ModelScope 兼容性自动修复**
-   - 修改 `__release_datetime__` 为过去日期
-   - 跳过 AST 扫描，避免 Python 3.10 的 `type_params` 错误
-
----
-
-## 常见问题
-
-### Q1: 为什么需要两次 `pip install`？
-
-**A**: 两个不同的目的：
-
-1. **第一次**（临时 Pod）：`pip install -r requirements.txt`
-   - 安装管理工具依赖（pyyaml, modelscope）
-   - 让 `volume_cli.py` 能运行
-
-2. **第二次**（volume_cli.py 执行）：`volume_cli.py deps install`
-   - 安装业务项目依赖（torch, funasr）
-   - 安装到 Volume，供 Serverless Pod 使用
-
-### Q2: 增量安装真的安全吗？
-
-**A**: 安全，因为：
-- `pip install --upgrade` 不会删除旧版本，只是覆盖
-- 如果安装失败，旧版本依然可用
-- 如果检测到删除包，会自动切换到全量重装
-
-### Q3: funasr 的 `--no-deps` 会导致缺少依赖吗？
-
-**A**: 不会，因为：
-- funasr 的所有依赖已在 `dependencies.yaml` 中显式声明
-- 参考官方 `setup.py` 确认了依赖列表
-- `--no-deps` 只是跳过 pip 的依赖检查，包本身正常安装
-
-### Q4: 如何添加新项目？
-
-**A**: 参考 [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+💡 **性能对比**：
+- ⚡ 增量更新：20 秒（只装变化的包）
+- 🔄 完整重装：10 分钟（`--force` 参数）
 
 ---
 
@@ -294,6 +189,53 @@ def install_dependencies_from_config(project_name, config_file):
    /runpod-volume/python-deps/py3.10/speaker-diarization
    /runpod-volume/models
    ```
+
+---
+
+## ⚠️ 重要注意事项
+
+### Volume 配置
+- 📍 **地区一致**：所有 Pod 必须与 Volume 在**同一地区**（这是最重要的！）
+- ✅ **路径一致**：所有 Pod 必须挂载到同一路径（`/workspace` 或 `/runpod-volume`）
+- ✅ **容量预留**：至少 15GB（依赖 800M + 模型 8-10GB）
+- ✅ **数据持久**：删除 Pod 不影响 Volume 数据
+
+### 安装过程
+- ⏱️ **首次安装**：10 分钟左右，需下载大量依赖和模型
+- ⚡ **增量更新**：20 秒左右，只装变化的包
+- 🔄 **自动处理**：自动检测 Python 版本并安装
+
+### 常见问题
+- ❓ **看不到 Volume 选项**：检查 Pod 和 Volume 是否在同一地区
+- ❓ **安装失败**：检查网络连接，重新运行命令即可
+- ❓ **找不到包**：确认 `requirements.txt` 已安装（管理工具依赖）
+- ❓ **版本冲突**：工具会自动处理，无需手动干预
+
+---
+
+## 📚 附录
+
+### Volume 目录结构
+
+```
+/runpod-volume/ 或 /workspace/
+├── .metadata/                    # 元数据（追踪已安装的依赖）
+├── python-deps/                  # Python 依赖（按版本隔离）
+│   ├── py3.10/
+│   │   └── speaker-diarization/ # 项目依赖目录
+│   └── py3.11/
+│       └── other-project/
+└── models/                       # AI 模型（所有项目共享）
+    └── hub/
+```
+
+### 如何添加新项目
+
+参考：[projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+
+### 技术细节
+
+参考：[MODELSCOPE_AST_FIX.md](./MODELSCOPE_AST_FIX.md) - ModelScope 兼容性技术文档
 
 ---
 
