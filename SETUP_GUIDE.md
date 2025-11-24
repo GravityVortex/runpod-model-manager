@@ -369,7 +369,7 @@ cd /workspace/runpod-model-manager
 python3 volume_cli.py setup --project my-project
 ```
 
-> 📖 **详细文档**: [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+> 📖 **详细文档**: [projects/PROJECT_SETUP.md](./projects/PROJECT_SETUP.md)
 
 ---
 

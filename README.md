@@ -186,7 +186,7 @@ from .config import MyProject
 __all__ = ['MyProject']
 ```
 
-> 📖 **详细添加指南**：[projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+> 📖 **详细添加指南**：[projects/PROJECT_SETUP.md](./projects/PROJECT_SETUP.md)
 
 ### 2. 注册项目
 
@@ -205,9 +205,9 @@ PROJECTS = [
 
 ## 📖 文档
 
-- **[COMPLETE_GUIDE.md](./COMPLETE_GUIDE.md)** - 完整操作指南（详细 RunPod 步骤）⭐
+- **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - 完整设置指南（详细 RunPod 操作步骤）⭐
 - [MODELSCOPE_AST_FIX.md](./MODELSCOPE_AST_FIX.md) - ModelScope 兼容性技术文档
-- [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md) - 添加项目详细指南
+- [projects/PROJECT_SETUP.md](./projects/PROJECT_SETUP.md) - 添加项目详细指南
 
 ---
 
