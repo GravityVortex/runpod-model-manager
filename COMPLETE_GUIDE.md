@@ -244,7 +244,104 @@ python3 volume_cli.py deps install --project speaker-diarization --force
 
 ### 如何添加新项目
 
-参考：[projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+#### 快速操作流程
+
+**1. 创建项目目录**
+
+```bash
+cd projects
+mkdir my_project  # 注意：必须用下划线，不能用连字符
+cd my_project
+```
+
+**2. 创建配置文件 `config.py`**
+
+```python
+# -*- coding: utf-8 -*-
+from pathlib import Path
+from ..base import BaseProject
+from downloaders.factory import DownloaderFactory
+
+class MyProject(BaseProject):
+    @property
+    def name(self):
+        return "my-project"  # 项目名称（可以用连字符）
+    
+    @property
+    def python_version(self):
+        return '3.10'  # 根据你的项目选择
+    
+    @property
+    def dependencies_config(self):
+        """依赖配置文件路径"""
+        return str(Path(__file__).parent / 'dependencies.yaml')
+    
+    @property
+    def models(self):
+        return {
+            'modelscope': ['org/model-name'],
+            'huggingface': ['org/model-name'],
+        }
+    
+    def download_models(self, model_cache: str):
+        # 复制 speaker_diarization/config.py 的实现即可
+        ...
+```
+
+**3. 创建依赖配置 `dependencies.yaml`**
+
+```yaml
+groups:
+  pytorch:
+    index_url: "https://download.pytorch.org/whl/cu121"
+    packages:
+      - torch==2.4.1
+  
+  standard:
+    index_url: null
+    packages:
+      - transformers==4.35.0
+      - fastapi
+      - runpod
+
+install_order:
+  - pytorch
+  - standard
+
+metadata:
+  project: my-project
+  python_version: "3.10"
+```
+
+**4. 创建 `__init__.py`**
+
+```python
+from .config import MyProject
+__all__ = ['MyProject']
+```
+
+**5. 注册项目到 `projects/loader.py`**
+
+```python
+from .my_project import MyProject  # 添加导入
+
+PROJECTS = [
+    SpeakerDiarizationProject(),
+    MyProject(),  # 添加到列表
+]
+```
+
+**6. 测试和使用**
+
+```bash
+# 在临时 Pod 中执行
+cd /workspace/runpod-model-manager
+python3 volume_cli.py setup --project my-project
+```
+
+> 📖 **详细文档**: [projects/HOWTO_ADD_PROJECT.md](./projects/HOWTO_ADD_PROJECT.md)
+
+---
 
 ### 技术细节
 
