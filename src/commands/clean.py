@@ -6,7 +6,7 @@
 import sys
 import shutil
 from pathlib import Path
-from projects.loader import get_project
+from src.projects.loader import get_project
 from .utils import detect_volume_path
 
 

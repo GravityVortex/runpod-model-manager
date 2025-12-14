@@ -5,8 +5,8 @@
 """
 import sys
 import os
-from projects.loader import get_project
-from volume_manager import VolumeManager
+from src.projects.loader import get_project
+from src.volume_manager import VolumeManager
 from .utils import detect_volume_path
 
 

@@ -4,9 +4,9 @@
 模型管理命令
 """
 import sys
-from projects.loader import get_project
-from volume_manager import VolumeManager
-from downloaders.factory import DownloaderFactory
+from src.projects.loader import get_project
+from src.volume_manager import VolumeManager
+from src.downloaders.factory import DownloaderFactory
 from .utils import detect_volume_path
 
 

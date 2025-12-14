@@ -4,7 +4,7 @@
 状态查看命令
 """
 import os
-from volume_manager import VolumeManager
+from src.volume_manager import VolumeManager
 from .utils import detect_volume_path
 
 

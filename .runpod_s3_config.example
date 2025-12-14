@@ -1,0 +1,15 @@
+# RunPod S3 配置示例
+# 复制此文件到 ~/.runpod_s3_config 并填入你的凭证
+
+[runpods3]
+aws_access_key_id = user_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+aws_secret_access_key = rps_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+datacenter = US-CA-2
+volume_id = your_volume_id
+
+# 如果有多个配置,可以添加更多 profile
+# [another-profile]
+# aws_access_key_id = your_access_key
+# aws_secret_access_key = your_secret_key
+# datacenter = US-CA-2
+# volume_id = your_volume_id

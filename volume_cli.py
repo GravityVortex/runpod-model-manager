@@ -254,23 +254,23 @@ def main():
     # 分发到对应的命令处理器
     try:
         if args.command == 'status':
-            from commands.status import handle_status
+            from src.commands.status import handle_status
             handle_status(args)
         
         elif args.command == 'deps':
-            from commands.dependencies import handle_deps
+            from src.commands.dependencies import handle_deps
             handle_deps(args)
         
         elif args.command == 'models':
-            from commands.models import handle_models
+            from src.commands.models import handle_models
             handle_models(args)
         
         elif args.command == 'setup':
-            from commands.setup import handle_setup
+            from src.commands.setup import handle_setup
             handle_setup(args)
         
         elif args.command == 'clean':
-            from commands.clean import handle_clean
+            from src.commands.clean import handle_clean
             handle_clean(args)
         
         else:

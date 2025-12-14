@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from datetime import datetime
-from dependency_installer import DependencyInstaller
+from src.dependency_installer import DependencyInstaller
 
 
 class VolumeManager:

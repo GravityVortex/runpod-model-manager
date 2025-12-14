@@ -17,27 +17,24 @@
 
 ```
 runpod-model-manager/
-├── volume_cli.py            # 统一 CLI 入口
-├── volume_manager.py        # Volume 增量管理
-├── dependency_installer.py  # 通用依赖安装器
-├── modelscope_patch.py      # ModelScope 兼容性补丁
-├── requirements.txt         # 管理工具依赖（modelscope、huggingface-hub）
-├── commands/                # CLI 命令模块
-├── downloaders/             # 下载器模块
-└── projects/                # 项目配置
-    ├── speaker_diarization/ # 示例项目
-    │   ├── config.py
+├── src/                     # 核心源代码
+│   ├── commands/            # CLI 命令模块
+│   ├── downloaders/         # 下载器模块
+│   ├── projects/            # 项目配置
+│   │   └── speaker_diarization/  # 示例项目
+│   │       ├── config.py
     │   └── dependencies.yaml # 项目依赖配置（多索引源）
     └── your_project/        # 添加更多项目
 ```
 
 **依赖说明**：
+
 - 📦 **根目录 `requirements.txt`**：运行 `volume_cli.py` 需要的依赖（modelscope、huggingface-hub）
 - 📦 **项目目录 `dependencies.yaml`**：项目依赖配置，支持多索引源（torch、transformers 等）
 
 ## 🚀 快速开始
 
-### 统一 CLI 工具（推荐⭐）
+### 统一 CLI 工具（推荐 ⭐）
 
 使用统一的 CLI 工具管理依赖和模型：
 
@@ -72,15 +69,15 @@ python3 volume_cli.py status --project speaker-diarization
 
 **CLI 命令参考**：
 
-| 命令 | 说明 |
-|------|------|
-| `setup` | 一键设置（依赖+模型） |
-| `status` | 查看 Volume 状态 |
-| `deps install` | 安装依赖（增量） |
-| `deps check` | 检查依赖完整性 |
-| `models download` | 下载模型（增量） |
-| `models verify` | 验证模型完整性 |
-| `clean` | 清理项目数据 |
+| 命令              | 说明                  |
+| ----------------- | --------------------- |
+| `setup`           | 一键设置（依赖+模型） |
+| `status`          | 查看 Volume 状态      |
+| `deps install`    | 安装依赖（增量）      |
+| `deps check`      | 检查依赖完整性        |
+| `models download` | 下载模型（增量）      |
+| `models verify`   | 验证模型完整性        |
+| `clean`           | 清理项目数据          |
 
 ---
 
@@ -119,10 +116,10 @@ ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH
 
 ```bash
 # 创建项目目录
-mkdir -p projects/my_project
+mkdir -p src/projects/my_project
 ```
 
-**创建配置文件** (`projects/my_project/config.py`)：
+**创建配置文件** (`src/projects/my_project/config.py`)：
 
 ```python
 from pathlib import Path
@@ -132,29 +129,29 @@ class MyProject(BaseProject):
     @property
     def name(self):
         return "my-project"
-    
+
     @property
     def python_version(self):
         return '3.10'
-    
+
     @property
     def dependencies_config(self):
         """依赖配置文件"""
         return str(Path(__file__).parent / 'dependencies.yaml')
-    
+
     @property
     def models(self):
         return {
             'modelscope': ['org/model-1'],
             'huggingface': ['org/model-2'],
         }
-    
+
     def download_models(self, model_cache: str):
         # 复制 speaker_diarization 的实现即可
         ...
 ```
 
-**创建依赖配置** (`projects/my_project/dependencies.yaml`)：
+**创建依赖配置** (`src/projects/my_project/dependencies.yaml`)：
 
 ```yaml
 groups:
@@ -162,7 +159,7 @@ groups:
     index_url: "https://download.pytorch.org/whl/cu121"
     packages:
       - torch==2.1.0
-  
+
   standard:
     index_url: null
     packages:
@@ -179,18 +176,18 @@ metadata:
   python_version: "3.10"
 ```
 
-**创建导出文件** (`projects/my_project/__init__.py`)：
+**创建导出文件** (`src/projects/my_project/__init__.py`)：
 
 ```python
 from .config import MyProject
 __all__ = ['MyProject']
 ```
 
-> 📖 **详细添加指南**：[projects/PROJECT_SETUP.md](./projects/PROJECT_SETUP.md)
+> 📖 **详细添加指南**：[src/projects/PROJECT_SETUP.md](./src/projects/PROJECT_SETUP.md)
 
 ### 2. 注册项目
 
-编辑 `projects/loader.py`：
+编辑 `src/projects/loader.py`：
 
 ```python
 from .my_project import MyProject
@@ -207,7 +204,7 @@ PROJECTS = [
 
 - **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - 完整设置指南（详细 RunPod 操作步骤）⭐
 - [MODELSCOPE_AST_FIX.md](./MODELSCOPE_AST_FIX.md) - ModelScope 兼容性技术文档
-- [projects/PROJECT_SETUP.md](./projects/PROJECT_SETUP.md) - 添加项目详细指南
+- [src/projects/PROJECT_SETUP.md](./src/projects/PROJECT_SETUP.md) - 添加项目详细指南
 
 ---
 
