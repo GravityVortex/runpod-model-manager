@@ -2,124 +2,129 @@
 
 **统一管理 RunPod Volume 中的模型和依赖**
 
-在 RunPod Network Volume 中管理多个项目的 Python 依赖和 AI 模型，支持增量更新、版本隔离。
+在 RunPod Volume（Pod `/workspace` 或 Serverless `/runpod-volume`）中管理多个项目的 Python 依赖和 AI 模型，支持增量更新与按 Python 版本隔离依赖目录。
 
 ## 特性
 
-- ✅ **统一 CLI**：单一入口管理所有操作
-- ✅ **增量更新**：只安装/下载新增的内容
-- ✅ **版本隔离**：按 Python 版本隔离依赖
-- ✅ **自动安装**：自动检测版本并安装需要的 Python
+- ✅ **统一 CLI**：单一入口管理依赖与模型
+- ✅ **增量更新**：依赖按配置变更增量/全量更新；模型按已存在文件跳过
+- ✅ **版本隔离**：依赖安装到 `python-deps/pyX.Y/<project>/`
+- ✅ **自动处理 Python 版本**：`deps install` 会检测当前解释器版本，不匹配时自动切换/尝试安装（需要 root 且依赖 apt）
 - ✅ **独立项目**：每个项目一个目录，清晰管理
-- ✅ **多源支持**：ModelScope、HuggingFace 等
+- ✅ **多源支持**：ModelScope、HuggingFace
 
-## 目录结构
+## 目录结构（仓库）
 
 ```
 runpod-model-manager/
-├── src/                     # 核心源代码
-│   ├── commands/            # CLI 命令模块
-│   ├── downloaders/         # 下载器模块
-│   ├── projects/            # 项目配置
+├── volume_cli.py                 # 统一 CLI 入口
+├── requirements.txt              # CLI 自身依赖（pyyaml/modelscope/huggingface-hub）
+├── src/
+│   ├── commands/                 # CLI 子命令实现
+│   ├── downloaders/              # ModelScope/HF 下载器
+│   ├── projects/                 # 项目配置
 │   │   └── speaker_diarization/  # 示例项目
 │   │       ├── config.py
-    │   └── dependencies.yaml # 项目依赖配置（多索引源）
-    └── your_project/        # 添加更多项目
+│   │       └── dependencies.yaml # 项目依赖配置（支持多索引源/no-deps）
+│   ├── dependency_installer.py   # YAML 依赖安装器（多索引源）
+│   └── volume_manager.py         # 增量管理与元数据
+├── MODEL_DEPLOYMENT_GUIDE.md
+└── S3_UPLOAD_GUIDE.md
 ```
 
-**依赖说明**：
+## Volume 目录结构（实际落盘）
 
-- 📦 **根目录 `requirements.txt`**：运行 `volume_cli.py` 需要的依赖（modelscope、huggingface-hub）
-- 📦 **项目目录 `dependencies.yaml`**：项目依赖配置，支持多索引源（torch、transformers 等）
+CLI 会自动检测可写的 Volume 挂载点（按顺序尝试）：
+
+- `/workspace`（RunPod Pod 常见）
+- `/runpod-volume`（RunPod Serverless 常见）
+- `RUNPOD_VOLUME_PATH`（你自己指定）
+
+落盘结构如下（相对于 Volume 根目录）：
+
+```
+<VOLUME>/
+├── models/                         # 模型缓存目录（ModelScope/HF 都指向这里）
+├── python-deps/
+│   └── py3.10/
+│       └── speaker-diarization/    # pip -t 安装目录（以项目名隔离）
+└── .metadata/                      # 增量更新用的元数据（json）
+```
 
 ## 🚀 快速开始
 
-### 统一 CLI 工具（推荐 ⭐）
-
-使用统一的 CLI 工具管理依赖和模型：
+在带 Volume 的临时 Pod（或任意能写入 Volume 的环境）执行：
 
 ```bash
-# === 在临时 Pod 的 Web Terminal 中 ===
-
-# 1. Clone 项目
-cd /workspace
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 2. ⚠️ 重要：先安装管理工具依赖
-# CLI 工具需要 pyyaml、modelscope、huggingface-hub 等依赖
-pip install -r requirements.txt
+# 安装 CLI 自身依赖（只需要这三个）
+python3 -m pip install -r requirements.txt
 
-# 💡 提示：当系统自动切换 Python 版本时，会自动安装这些依赖到新版本
-
-# 3. 一键设置项目（依赖+模型）
+# 一键：安装依赖 + 下载模型
 python3 volume_cli.py setup --project speaker-diarization
-
-# 或分步执行：
-
-# 安装依赖
-python3 volume_cli.py deps install --project speaker-diarization
-
-# 下载模型
-python3 volume_cli.py models download --project speaker-diarization
-
-# 查看状态
-python3 volume_cli.py status --project speaker-diarization
 ```
 
-**CLI 命令参考**：
+如果 Volume 不在默认路径，可显式指定：
+
+```bash
+export RUNPOD_VOLUME_PATH=/runpod-volume
+python3 volume_cli.py status
+```
+
+## CLI 命令参考
 
 | 命令              | 说明                  |
 | ----------------- | --------------------- |
 | `setup`           | 一键设置（依赖+模型） |
 | `status`          | 查看 Volume 状态      |
 | `deps install`    | 安装依赖（增量）      |
+| `deps list`       | 列出依赖配置          |
 | `deps check`      | 检查依赖完整性        |
 | `models download` | 下载模型（增量）      |
+| `models list`     | 列出模型清单          |
 | `models verify`   | 验证模型完整性        |
 | `clean`           | 清理项目数据          |
 
----
+常用参数（与代码一致）：
 
-## 使用流程
+- `deps install --mirror <url>`：仅对 `dependencies.yaml` 中 `index_url: null` 的组生效（其他组走各自 `index_url`）
+- `deps install --force`：跳过变更检测，强制重装
+- `models download --force`：强制重新下载
+- `setup --skip-deps` / `setup --skip-models`：跳过某一步
+- `clean --deps/--models/--all`：必须指定清理范围，且需要输入 `yes` 确认
 
-### 1. 在临时 Pod 中设置
+## 使用流程（推荐）
+
+### 1) 在临时 Pod 中预热 Volume
 
 ```bash
-# 创建临时 Pod，挂载 Volume 到 /workspace
-
-cd /workspace
-git clone https://github.com/GravityVortex/runpod-model-manager.git
-cd runpod-model-manager
-
-# 一键设置项目
 python3 volume_cli.py setup --project speaker-diarization
-
-# 完成后删除 Pod
 ```
 
-### 2. 在项目中使用
+### 2) 在业务镜像/Serverless 中使用落盘内容
+
+依赖通过 `pip -t` 安装到 Volume 目录，因此业务镜像侧通常通过 `PYTHONPATH` 引入：
 
 ```dockerfile
-# Dockerfile.serverless
-ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH \
-    MODELSCOPE_CACHE=/runpod-volume/models
+ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH
+ENV MODELSCOPE_CACHE=/runpod-volume/models
 ```
 
----
+模型下载时显式使用 `<VOLUME>/models` 作为 `cache_dir`；运行时也建议把相关缓存变量指向同一路径（至少 `MODELSCOPE_CACHE`）。
 
 ## 添加项目
 
-### 1. 添加你的项目配置
+### 1) 添加项目配置
 
 **每个项目独立一个目录**：
 
 ```bash
-# 创建项目目录
 mkdir -p src/projects/my_project
 ```
 
-**创建配置文件** (`src/projects/my_project/config.py`)：
+**创建配置文件**（必须继承 `src/projects/base.py:BaseProject`）：
 
 ```python
 from pathlib import Path
@@ -131,6 +136,13 @@ class MyProject(BaseProject):
         return "my-project"
 
     @property
+    def models(self):
+        return {
+            'modelscope': ['org/model-1'],
+            'huggingface': ['org/model-2'],
+        }
+
+    @property
     def python_version(self):
         return '3.10'
 
@@ -139,19 +151,12 @@ class MyProject(BaseProject):
         """依赖配置文件"""
         return str(Path(__file__).parent / 'dependencies.yaml')
 
-    @property
-    def models(self):
-        return {
-            'modelscope': ['org/model-1'],
-            'huggingface': ['org/model-2'],
-        }
-
     def download_models(self, model_cache: str):
-        # 复制 speaker_diarization 的实现即可
-        ...
+        # 可直接复制 src/projects/speaker_diarization/config.py 的下载逻辑
+        raise NotImplementedError
 ```
 
-**创建依赖配置** (`src/projects/my_project/dependencies.yaml`)：
+**创建依赖配置**（`dependencies.yaml` 支持多索引源、`no_deps` 等）：
 
 ```yaml
 groups:
@@ -176,48 +181,38 @@ metadata:
   python_version: "3.10"
 ```
 
-**创建导出文件** (`src/projects/my_project/__init__.py`)：
+**创建导出文件**（`src/projects/my_project/__init__.py`）：
 
 ```python
 from .config import MyProject
 __all__ = ['MyProject']
 ```
 
-> 📖 **详细添加指南**：[src/projects/PROJECT_SETUP.md](./src/projects/PROJECT_SETUP.md)
+### 2) 注册项目
 
-### 2. 注册项目
-
-编辑 `src/projects/loader.py`：
+编辑 `src/projects/loader.py`，导入并加入 `ProjectLoader.PROJECTS`：
 
 ```python
+from .speaker_diarization import SpeakerDiarizationProject
 from .my_project import MyProject
 
-PROJECTS = [
-    SpeakerDiarizationProject(),
-    MyProject(),
-]
+class ProjectLoader:
+    PROJECTS = [
+        SpeakerDiarizationProject(),
+        MyProject(),
+    ]
 ```
 
----
+## 📖 文档与说明
 
-## 📖 文档
+- `MODEL_DEPLOYMENT_GUIDE.md`：两种模型落盘方式对比（S3 上传 vs 在线下载）与完整流程
+- `S3_UPLOAD_GUIDE.md`：S3 上传工具（`src/s3_uploader.py`）使用说明（需要额外安装 `boto3`）
 
-- **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - 完整设置指南（详细 RunPod 操作步骤）⭐
-- [MODELSCOPE_AST_FIX.md](./MODELSCOPE_AST_FIX.md) - ModelScope 兼容性技术文档
-- [src/projects/PROJECT_SETUP.md](./src/projects/PROJECT_SETUP.md) - 添加项目详细指南
+## 注意事项（按代码行为）
 
----
-
-## 🔗 关联业务项目
-
-本工具负责依赖和模型管理，具体业务实现在独立项目中：
-
-- **说话人分割项目**: [GravityVortex/zhesheng-model-speaker-reg](https://github.com/GravityVortex/zhesheng-model-speaker-reg)
-  - 业务代码（api.py, mydemo.py）
-  - Serverless 部署配置（Dockerfile.serverless）
-  - 完整部署文档（RUNPOD_DEPLOY.md）
-
----
+- `deps install` 会要求当前解释器版本等于项目的 `python_version`；不匹配时会优先尝试调用 `pythonX.Y` 重新执行，否则尝试 `apt-get install pythonX.Y-*`（需要 root 且依赖系统源）。
+- 模型默认下载到 `<VOLUME>/models/`，目录结构由上游库决定（ModelScope 通常在 `models/hub/<model_id>`，HuggingFace 通常在 `models/models--org--repo`）。
+- `clean --models` 不会删除真实模型文件（模型可能被多个项目共享），只清理元数据记录；删除真实模型请自行处理 `models/` 目录。
 
 ## Volume 结构
 
