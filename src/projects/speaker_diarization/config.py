@@ -16,6 +16,17 @@ class SpeakerDiarizationProject(BaseProject):
         return "speaker-diarization"
     
     @property
+    def models_remote_prefix(self):
+        """模型在 Volume 中的子目录"""
+        return 'speaker-reg'  # 保持与现有上传脚本一致
+    
+    @property
+    def local_models_dir(self):
+        """本地模型目录（可选）"""
+        # 返回 None，通过命令行参数指定（推荐）
+        return None
+    
+    @property
     def models(self):
         return {
             'modelscope': [

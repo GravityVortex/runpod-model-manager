@@ -218,6 +218,31 @@ def main():
         help='跳过模型下载'
     )
     
+    # ==================== deploy 命令 ====================
+    deploy_parser = subparsers.add_parser(
+        'deploy',
+        help='一站式部署（上传模型+生成依赖安装命令）'
+    )
+    deploy_parser.add_argument(
+        '--project',
+        required=True,
+        help='项目名称'
+    )
+    deploy_parser.add_argument(
+        '--models-dir',
+        help='本地模型目录（可选）'
+    )
+    deploy_parser.add_argument(
+        '--volume-path',
+        default='/runpod-volume',
+        help='Volume挂载路径（默认: /runpod-volume）'
+    )
+    deploy_parser.add_argument(
+        '--skip-upload',
+        action='store_true',
+        help='跳过模型上传'
+    )
+    
     # ==================== clean 命令 ====================
     clean_parser = subparsers.add_parser(
         'clean',
@@ -268,6 +293,10 @@ def main():
         elif args.command == 'setup':
             from src.commands.setup import handle_setup
             handle_setup(args)
+        
+        elif args.command == 'deploy':
+            from src.commands.deploy import handle_deploy
+            handle_deploy(args)
         
         elif args.command == 'clean':
             from src.commands.clean import handle_clean

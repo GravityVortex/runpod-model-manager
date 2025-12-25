@@ -1,5 +1,9 @@
 # RunPod 模型管理完整指南
 
+> **推荐**: 使用 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) 的一站式部署流程
+> 
+> 本文档提供技术对比和高级用法参考。
+
 本文档介绍如何在 RunPod 环境中管理模型，包括两种主要方式：**S3 上传**和**在线下载**。
 
 ---
@@ -562,3 +566,7 @@ python3 volume_cli.py status --project PROJECT_NAME
 ---
 
 **最后更新**: 2025-12-14
+
+
+
+
