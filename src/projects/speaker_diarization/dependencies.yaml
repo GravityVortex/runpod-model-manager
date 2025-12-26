@@ -36,6 +36,9 @@ groups:
       - uvicorn==0.33.0
       - python-multipart==0.0.20
       - addict==2.4.0
+      - datasets==2.14.5
+      - pyarrow==12.0.1
+      - fastcluster==1.2.6
       - runpod
     description: "Standard packages from PyPI"
   
@@ -44,18 +47,8 @@ groups:
     index_url: null
     no_deps: true
     packages:
-      - funasr==0.8.8
+      - funasr==1.2.7
     description: "FunASR installed with --no-deps"
-    # 为什么安全？funasr 的所有依赖都已在 standard 组中显式安装：
-    #   ✅ numpy==1.23.5
-    #   ✅ torch==2.4.1, torchaudio==2.4.1
-    #   ✅ transformers==4.46.3
-    #   ✅ onnxruntime==1.19.2
-    #   ✅ soundfile==0.13.1, librosa==0.11.0
-    #   ✅ kaldiio==2.18.1
-    #   ✅ umap-learn==0.5.7 (替代 umap)
-    #   ✅ hdbscan==0.8.40
-    # 参考：Dockerfile 中也是分步安装，先装基础包再装 funasr
 
 # 安装顺序（某些包需要先安装）
 install_order:
@@ -68,4 +61,5 @@ metadata:
   project: speaker-diarization
   python_version: "3.10"
   created: "2024-11-23"
+  updated: "2025-12-26"
   description: "Speaker diarization project dependencies"
