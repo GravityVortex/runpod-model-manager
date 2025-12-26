@@ -11,7 +11,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional, Dict
 
-from s3_config import S3Config
+from src.s3_config import S3Config
 
 
 def _sha256_file(path: Path) -> str:
@@ -245,30 +245,33 @@ def upload_directory(
     if verbose:
         print(f"\n📤 开始上传 {len(files)} 个文件...\n")
     
-    for i, file_path in enumerate(files, 1):
+    # 使用 tqdm 进度条
+    try:
+        from tqdm import tqdm
+        use_tqdm = verbose
+    except ImportError:
+        use_tqdm = False
+    
+    iterator = tqdm(files, desc="上传进度", unit="file", position=0, leave=True) if use_tqdm else files
+    
+    for file_path in iterator:
         # 计算相对路径
         rel_path = file_path.relative_to(local_path)
         
         # 构建远程路径
         if include_parent_dir:
-            # 包含父目录名
             parent_name = local_path.name
             if remote_prefix:
                 remote_key = f"{remote_prefix}/{parent_name}/{rel_path}"
             else:
                 remote_key = f"{parent_name}/{rel_path}"
         else:
-            # 不包含父目录名
             if remote_prefix:
                 remote_key = f"{remote_prefix}/{rel_path}"
             else:
                 remote_key = str(rel_path)
         
         full_remote_key = _build_remote_path(models_subdir, remote_key)
-        
-        if verbose:
-            print(f"[{i}/{len(files)}] {rel_path}")
-            print(f"   → s3://{config.volume_id}/{full_remote_key}")
         
         try:
             s3_client.upload_file(
@@ -277,15 +280,12 @@ def upload_directory(
                 full_remote_key
             )
             result['success'] += 1
-            if verbose:
-                print(f"   ✅ 成功")
+            if use_tqdm:
+                tqdm.write(f"✅ {file_path} → s3://{config.volume_id}/{full_remote_key}")
         except Exception as e:
             result['failed'] += 1
-            if verbose:
-                print(f"   ❌ 失败: {e}")
-        
-        if verbose:
-            print()
+            if use_tqdm:
+                tqdm.write(f"❌ {file_path} → s3://{config.volume_id}/{full_remote_key}: {e}")
     
     if verbose:
         print(f"{'='*60}")

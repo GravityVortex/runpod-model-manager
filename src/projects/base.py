@@ -47,30 +47,6 @@ class BaseProject(ABC):
         """
         return '3.10'  # 默认 3.10
     
-    @property
-    def models_remote_prefix(self) -> str:
-        """
-        模型在 Volume 中的子目录名（项目隔离）
-        默认使用项目名，子类可覆盖
-        
-        示例: 'speaker-reg' 
-        结果: /runpod-volume/models/speaker-reg/
-        """
-        return self.name
-    
-    @property
-    def local_models_dir(self) -> Optional[str]:
-        """
-        本地模型目录（用于 S3 上传）
-        返回本地模型文件的根目录路径
-        
-        示例: '/Users/xxx/Downloads/speaker-reg/models'
-        上传后: /runpod-volume/models/speaker-reg/...
-        
-        返回 None 表示需要通过命令行参数指定
-        """
-        return None
-    
     def get_all_models(self) -> List[tuple]:
         """获取所有模型（返回 (model_id, source) 列表）"""
         all_models = []

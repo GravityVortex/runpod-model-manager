@@ -10,10 +10,10 @@ groups:
       - torch==2.4.1
       - torchaudio==2.4.1
     description: "PyTorch with CUDA 12.1 support"
-  
+
   # 标准 PyPI 包（从默认源安装）
   standard:
-    index_url: null  # null 表示使用默认 PyPI 源
+    index_url: null # null 表示使用默认 PyPI 源
     packages:
       - tqdm==4.67.1
       - scipy==1.10.1
@@ -41,7 +41,7 @@ groups:
       - fastcluster==1.2.6
       - runpod
     description: "Standard packages from PyPI"
-  
+
   # funasr 使用 --no-deps 安装（安全的解决方案）
   funasr:
     index_url: null
@@ -52,9 +52,9 @@ groups:
 
 # 安装顺序（某些包需要先安装）
 install_order:
-  - pytorch    # 先安装 PyTorch
-  - standard   # 再安装其他包（包括 umap-learn）
-  - funasr     # 最后安装 funasr
+  - pytorch # 先安装 PyTorch
+  - standard # 再安装其他包（包括 umap-learn）
+  - funasr # 最后安装 funasr
 
 # 元数据
 metadata:
