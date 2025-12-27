@@ -39,16 +39,17 @@ groups:
       - datasets==2.14.5
       - pyarrow==12.0.1
       - fastcluster==1.2.6
+      - funasr==1.2.7
       - runpod
     description: "Standard packages from PyPI"
 
-  # funasr 使用 --no-deps 安装（安全的解决方案）
-  funasr:
-    index_url: null
-    no_deps: true
-    packages:
-      - funasr==1.2.7
-    description: "FunASR installed with --no-deps"
+  # # funasr 使用 --no-deps 安装（安全的解决方案）
+  # funasr:
+  #   index_url: null
+  #   no_deps: true
+  #   packages:
+  #     - funasr==1.2.7
+  #   description: "FunASR installed with --no-deps"
 
 # 安装顺序（某些包需要先安装）
 install_order:
