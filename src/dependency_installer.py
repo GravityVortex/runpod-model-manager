@@ -66,18 +66,28 @@ class DependencyInstaller:
         print(f"📦 开始安装依赖")
         print(f"{'='*60}")
         
+        total_groups = len([g for g in install_order if g in groups])
+        current_group_idx = 0
+        
         for group_name in install_order:
             if group_name not in groups:
                 print(f"\n⚠️  警告: 安装顺序中的组 '{group_name}' 不存在，跳过")
                 continue
             
+            current_group_idx += 1
             group_config = groups[group_name]
+            
+            # 输出结构化进度日志
+            print(f"[PROGRESS] group={group_name} current={current_group_idx} total={total_groups}")
+            
             success = self._install_group(
                 group_name,
                 group_config,
                 target_dir,
                 mirror,
-                dry_run
+                dry_run,
+                current_group_idx,
+                total_groups
             )
             results[group_name] = success
         
@@ -102,7 +112,9 @@ class DependencyInstaller:
         group_config: Dict,
         target_dir: Optional[str],
         mirror: Optional[str],
-        dry_run: bool
+        dry_run: bool,
+        current_idx: int = 1,
+        total_groups: int = 1
     ) -> bool:
         """
         安装一个依赖组
@@ -113,6 +125,8 @@ class DependencyInstaller:
             target_dir: 安装目标目录
             mirror: PyPI 镜像源
             dry_run: 是否只打印命令
+            current_idx: 当前组索引
+            total_groups: 总组数
         
         Returns:
             是否成功
@@ -168,6 +182,9 @@ class DependencyInstaller:
             return True
         
         # 执行安装（实时显示输出）
+        import time
+        start_time = time.time()
+        
         try:
             # 不捕获输出，让日志实时显示到终端
             result = subprocess.run(
@@ -175,15 +192,20 @@ class DependencyInstaller:
                 check=False
             )
             
+            elapsed_time = int(time.time() - start_time)
             print()  # 安装完成后空一行
+            
             if result.returncode == 0:
+                print(f"[SUCCESS] group={group_name} time={elapsed_time}s packages={len(packages)}")
                 print(f"✅ 组 '{group_name}' 安装成功")
                 return True
             else:
+                print(f"[FAILED] group={group_name} exitcode={result.returncode}")
                 print(f"❌ 组 '{group_name}' 安装失败 (退出码: {result.returncode})")
                 return False
         
         except Exception as e:
+            print(f"[FAILED] group={group_name} error={str(e)}")
             print(f"❌ 组 '{group_name}' 安装异常: {e}")
             return False
     

@@ -18,6 +18,8 @@ def handle_deps(args):
         list_dependencies(args)
     elif args.deps_command == 'check':
         check_dependencies(args)
+    elif args.deps_command == 'status':
+        check_task_status(args)
     else:
         print("❌ 未知的 deps 子命令")
         sys.exit(1)
@@ -25,6 +27,32 @@ def handle_deps(args):
 
 def install_dependencies(args):
     """安装依赖"""
+    # 检查是否为异步模式
+    if hasattr(args, 'async_mode') and args.async_mode:
+        # 异步模式：启动后台任务
+        from src.task_manager import TaskManager
+        
+        volume_path = detect_volume_path()
+        task_manager = TaskManager(volume_path)
+        
+        # 构建命令参数（移除 --async）
+        command_args = sys.argv.copy()
+        
+        # 启动后台任务
+        task_info = task_manager.start_background_task(command_args)
+        
+        print("=" * 60)
+        print("🚀 后台任务已启动")
+        print("=" * 60)
+        print(f"📋 任务ID: {task_info['task_id']}")
+        print(f"📝 日志文件: {task_info['log_file']}")
+        print(f"\n查看进度:")
+        print(f"  python3 volume_cli.py deps status {task_info['task_id']}")
+        print(f"\n实时跟踪日志:")
+        print(f"  tail -f {task_info['log_file']}")
+        return
+    
+    # 同步模式：正常执行
     print("=" * 60)
     print("🔧 依赖管理（增量）")
     print("=" * 60)
@@ -402,3 +430,94 @@ def check_dependencies(args):
         sys.exit(1)
     else:
         print("\n✅ 所有依赖完整可用")
+
+
+def check_task_status(args):
+    """检查任务状态"""
+    from src.task_manager import TaskManager
+    
+    volume_path = detect_volume_path()
+    task_manager = TaskManager(volume_path)
+    
+    # 如果没有提供任务ID，列出所有任务
+    if not hasattr(args, 'task_id') or not args.task_id:
+        tasks = task_manager.list_tasks()
+        if not tasks:
+            print("📋 没有找到任何任务")
+            return
+        
+        print("=" * 60)
+        print("📋 任务列表")
+        print("=" * 60)
+        for task in tasks[:10]:  # 只显示最近10个
+            status_icon = {
+                'running': '🔄',
+                'completed': '✅',
+                'failed': '❌',
+                'unknown': '❓'
+            }.get(task.get('status', 'unknown'), '❓')
+            
+            print(f"\n{status_icon} {task['task_id']}")
+            print(f"   命令: {task['command']}")
+            print(f"   开始: {task['started_at']}")
+            print(f"   状态: {task['status']}")
+        
+        print(f"\n💡 查看详情:")
+        print(f"   python3 volume_cli.py deps status <task_id>")
+        return
+    
+    # 获取任务状态
+    try:
+        task_info = task_manager.get_task_status(args.task_id)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    
+    # 显示任务信息
+    print("=" * 60)
+    print(f"📋 任务: {task_info['task_id']}")
+    print("=" * 60)
+    print(f"📦 命令: {task_info['command']}")
+    print(f"⏱️  开始时间: {task_info['started_at']}")
+    
+    status_icon = {
+        'running': '🔄 运行中',
+        'completed': '✅ 已完成',
+        'failed': '❌ 失败',
+        'unknown': '❓ 未知'
+    }.get(task_info['status'], '❓ 未知')
+    print(f"🔄 状态: {status_icon}")
+    
+    if task_info.get('completed_at'):
+        print(f"⏱️  完成时间: {task_info['completed_at']}")
+    
+    # 显示进度
+    progress = task_info.get('progress', {})
+    if progress.get('total_groups', 0) > 0:
+        print(f"\n📊 进度:")
+        current_group = progress.get('current_group', 'N/A')
+        completed = progress.get('completed_groups', 0)
+        total = progress.get('total_groups', 0)
+        
+        if current_group:
+            print(f"  当前组: {current_group} ({completed}/{total})")
+        
+        # 进度条
+        if total > 0:
+            percentage = int((completed / total) * 100)
+            bar_length = 20
+            filled = int((completed / total) * bar_length)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            print(f"  总进度: {percentage}% {bar}")
+        
+        # 统计
+        print(f"\n📈 统计:")
+        print(f"  ✅ 成功: {progress.get('success_count', 0)} 组")
+        print(f"  ❌ 失败: {progress.get('failed_count', 0)} 组")
+        if progress.get('retry_count', 0) > 0:
+            print(f"  🔄 重试: {progress.get('retry_count', 0)} 次")
+    
+    # 日志文件
+    print(f"\n💡 实时日志:")
+    print(f"  tail -f {task_info['log_file']}")
+

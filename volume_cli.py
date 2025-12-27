@@ -121,6 +121,12 @@ def main():
         action='store_true',
         help='强制重新安装'
     )
+    deps_install_parser.add_argument(
+        '--async',
+        dest='async_mode',
+        action='store_true',
+        help='后台异步执行'
+    )
     
     # deps list
     deps_list_parser = deps_subparsers.add_parser(
@@ -142,6 +148,17 @@ def main():
         '--project',
         required=True,
         help='项目名称'
+    )
+    
+    # deps status
+    deps_status_parser = deps_subparsers.add_parser(
+        'status',
+        help='查看任务状态'
+    )
+    deps_status_parser.add_argument(
+        'task_id',
+        nargs='?',
+        help='任务ID（不提供则列出所有任务）'
     )
     
     # ==================== models 命令组 ====================
