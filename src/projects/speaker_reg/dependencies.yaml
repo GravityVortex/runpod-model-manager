@@ -58,7 +58,7 @@ install_order:
 
 # 元数据
 metadata:
-  project: speaker-diarization
+  project: speaker-reg
   python_version: "3.10"
   created: "2024-11-23"
   updated: "2025-12-26"

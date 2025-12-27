@@ -6,7 +6,7 @@ from typing import List, Optional
 from .base import BaseProject
 
 # 导入各项目配置
-from .speaker_diarization import SpeakerDiarizationProject
+from .speaker_reg import SpeakerDiarizationProject
 
 
 class ProjectLoader:

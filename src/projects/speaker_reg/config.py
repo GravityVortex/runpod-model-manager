@@ -13,7 +13,7 @@ class SpeakerDiarizationProject(BaseProject):
     
     @property
     def name(self):
-        return "speaker-diarization"
+        return "speaker-reg"
     
     @property
     def models(self):
