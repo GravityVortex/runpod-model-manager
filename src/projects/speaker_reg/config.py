@@ -5,7 +5,7 @@
 import os
 from pathlib import Path
 from ..base import BaseProject
-from downloaders.factory import DownloaderFactory
+from src.downloaders.factory import DownloaderFactory
 
 
 class SpeakerDiarizationProject(BaseProject):
