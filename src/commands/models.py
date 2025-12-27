@@ -18,6 +18,10 @@ def handle_models(args):
         list_models(args)
     elif args.models_command == 'verify':
         verify_models(args)
+    elif args.models_command == 'sync':
+        sync_models(args)
+    elif args.models_command == 'register':
+        register_models(args)
     else:
         print("❌ 未知的 models 子命令")
         sys.exit(1)
@@ -195,3 +199,82 @@ def verify_models(args):
         sys.exit(1)
     else:
         print("\n✅ 所有模型完整可用")
+
+
+def sync_models(args):
+    """同步本地模型到远程 Volume"""
+    from src.model_syncer import ModelSyncer
+    import subprocess
+    
+    print("=" * 60)
+    print("📤 模型同步")
+    print("=" * 60)
+    
+    # 创建同步器
+    syncer = ModelSyncer(
+        remote_host=args.remote_host,
+        remote_volume=getattr(args, 'remote_volume', None)
+    )
+    
+    print(f"\n📦 项目: {args.project}")
+    print(f"🔗 远程主机: {args.remote_host}")
+    print(f"📂 远程 Volume: {syncer.remote_volume}")
+    
+    # 同步目录
+    success = syncer.sync_directory(
+        local_path=args.local_path,
+        model_id=args.model_id,
+        source=args.source,
+        force=args.force
+    )
+    
+    if not success:
+        print("\n❌ 同步失败")
+        sys.exit(1)
+    
+    # 验证传输
+    if syncer.verify_sync(args.local_path, args.model_id, args.source):
+        print("\n✅ 验证通过")
+    else:
+        print("\n⚠️  验证失败，但文件可能已传输")
+    
+    # 远程注册元数据
+    print(f"\n📝 注册模型到元数据...")
+    register_cmd = [
+        'ssh', args.remote_host,
+        f'cd /workspace && python3 volume_cli.py models register '
+        f'--project {args.project} --model-id {args.model_id} --source {args.source}'
+    ]
+    
+    try:
+        result = subprocess.run(register_cmd, capture_output=True, text=True, check=True)
+        print(result.stdout)
+        print("\n✅ 模型同步完成")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  注册失败: {e.stderr}")
+        print("   模型已传输，但未注册到元数据")
+
+
+def register_models(args):
+    """注册模型到元数据（在远程 Pod 执行）"""
+    volume_path = detect_volume_path()
+    manager = VolumeManager(volume_path)
+    
+    print("=" * 60)
+    print("📝 注册模型")
+    print("=" * 60)
+    
+    # 检查模型是否存在
+    if not manager.check_model_exists(args.model_id, args.source):
+        print(f"❌ 模型不存在: {args.model_id}")
+        sys.exit(1)
+    
+    # 注册到元数据
+    manager.register_model(
+        project_name=args.project,
+        model_id=args.model_id,
+        source=args.source
+    )
+    
+    print(f"✅ 已注册: {args.model_id} ({args.source})")
+    print(f"   项目: {args.project}")

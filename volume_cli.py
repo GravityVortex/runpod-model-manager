@@ -192,6 +192,69 @@ def main():
         help='项目名称'
     )
     
+    # models sync
+    models_sync_parser = models_subparsers.add_parser(
+        'sync',
+        help='同步本地模型到远程 Volume'
+    )
+    models_sync_parser.add_argument(
+        '--project',
+        required=True,
+        help='项目名称'
+    )
+    models_sync_parser.add_argument(
+        '--local-path',
+        required=True,
+        help='本地模型目录路径'
+    )
+    models_sync_parser.add_argument(
+        '--model-id',
+        required=True,
+        help='模型 ID (如 org/model-name)'
+    )
+    models_sync_parser.add_argument(
+        '--source',
+        required=True,
+        choices=['modelscope', 'huggingface'],
+        help='模型源'
+    )
+    models_sync_parser.add_argument(
+        '--remote-host',
+        required=True,
+        help='SSH 连接字符串 (user@host)'
+    )
+    models_sync_parser.add_argument(
+        '--remote-volume',
+        help='远程 volume 路径（默认自动检测）'
+    )
+    models_sync_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='强制覆盖已存在的模型'
+    )
+    
+    # models register
+    models_register_parser = models_subparsers.add_parser(
+        'register',
+        help='注册模型到元数据（在远程 Pod 执行）'
+    )
+    models_register_parser.add_argument(
+        '--project',
+        required=True,
+        help='项目名称'
+    )
+    models_register_parser.add_argument(
+        '--model-id',
+        required=True,
+        help='模型 ID'
+    )
+    models_register_parser.add_argument(
+        '--source',
+        required=True,
+        choices=['modelscope', 'huggingface'],
+        help='模型源'
+    )
+    
     # ==================== setup 命令 ====================
     setup_parser = subparsers.add_parser(
         'setup',

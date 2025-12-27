@@ -66,6 +66,82 @@ class BaseProject(ABC):
         """
         pass
     
+    @property
+    def local_models_path(self) -> Optional[str]:
+        """本地模型路径（用于上传）"""
+        return None
+    
+    @property
+    def upload_remote_host(self) -> Optional[str]:
+        """上传目标 SSH 连接 (user@host:port)"""
+        return None
+    
+    @property
+    def upload_remote_volume(self) -> str:
+        """上传目标 volume 路径"""
+        return '/workspace'
+    
+    @property
+    def upload_model_id(self) -> Optional[str]:
+        """上传的模型 ID"""
+        return None
+    
+    @property
+    def upload_source(self) -> str:
+        """上传的模型源（modelscope/huggingface）"""
+        return 'modelscope'
+    
+    def upload_models(self):
+        """
+        上传本地模型到远程 Volume
+        使用子类定义的配置参数
+        """
+        if not self.local_models_path:
+            print("❌ 未配置本地模型路径")
+            return False
+        
+        if not self.upload_remote_host:
+            print("❌ 未配置远程主机")
+            return False
+        
+        if not self.upload_model_id:
+            print("❌ 未配置模型 ID")
+            return False
+        
+        from src.model_syncer import ModelSyncer
+        
+        print(f"\n{'='*60}")
+        print(f"📤 上传本地模型: {self.name}")
+        print(f"{'='*60}")
+        
+        # 创建同步器
+        syncer = ModelSyncer(
+            remote_host=self.upload_remote_host,
+            remote_volume=self.upload_remote_volume
+        )
+        
+        # 上传模型
+        success = syncer.sync_directory(
+            local_path=self.local_models_path,
+            model_id=self.upload_model_id,
+            source=self.upload_source,
+            force=False
+        )
+        
+        if not success:
+            print("\n❌ 上传失败")
+            return False
+        
+        # 验证传输
+        if syncer.verify_sync(self.local_models_path, self.upload_model_id, self.upload_source):
+            print("\n✅ 验证通过")
+        else:
+            print("\n⚠️  验证失败，但文件可能已传输")
+        
+        print(f"\n✅ 上传完成！")
+        print(f"目标路径: {self.upload_remote_volume}/models/hub/{self.upload_model_id}/")
+        return True
+    
     def __repr__(self):
         total = sum(len(models) for models in self.models.values())
         return f"<{self.name}: {total} 个模型>"

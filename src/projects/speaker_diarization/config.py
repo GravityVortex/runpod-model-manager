@@ -32,6 +32,21 @@ class SpeakerDiarizationProject(BaseProject):
         current_dir = Path(__file__).parent
         return str(current_dir / 'dependencies.yaml')
     
+    @property
+    def local_models_path(self):
+        """本地模型路径"""
+        return '/Users/dashuai/Downloads/个人文件夹/音频转换/这声-推理模型/推理模型/speaker-reg/models'
+    
+    @property
+    def upload_remote_host(self):
+        """上传目标 SSH 连接"""
+        return 'root@69.30.85.76:22068'
+    
+    @property
+    def upload_model_id(self):
+        """上传的模型 ID"""
+        return 'speaker-reg'
+    
     def download_models(self, model_cache: str):
         """下载 ModelScope 模型"""
         print(f"\n{'='*60}")
