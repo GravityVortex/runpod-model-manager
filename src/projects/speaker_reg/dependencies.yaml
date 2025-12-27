@@ -55,7 +55,7 @@ groups:
 install_order:
   - pytorch # 先安装 PyTorch
   - standard # 再安装其他包（包括 umap-learn）
-  - funasr # 最后安装 funasr
+#  - funasr # 最后安装 funasr
 
 # 元数据
 metadata:
