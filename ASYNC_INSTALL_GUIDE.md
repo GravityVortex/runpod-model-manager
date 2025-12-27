@@ -10,6 +10,7 @@
 - ✅ **任务跟踪**：随时查看安装进度和状态
 - ✅ **结构化日志**：详细的进度信息和统计数据
 - ✅ **向后兼容**：不加 `--async` 时行为完全不变
+- ⚡ **uv 加速**：自动使用 uv 替代 pip，安装速度提升 10-100 倍
 
 ## 使用方法
 
@@ -93,7 +94,41 @@ python3 volume_cli.py deps status deps_install_20251227_141126_a3f2
   tail -f /runpod-volume/.metadata/tasks/deps_install_20251227_141126_a3f2.log
 ```
 
-### 3. 实时跟踪日志
+### 3. 停止任务
+
+#### 优雅停止（推荐）
+
+```bash
+python3 volume_cli.py deps stop deps_install_20251227_141126_a3f2
+```
+
+输出示例：
+
+```
+============================================================
+✅ 任务已停止
+============================================================
+📋 任务ID: deps_install_20251227_141126_a3f2
+✅ 优雅终止 (SIGTERM)
+```
+
+#### 强制停止
+
+```bash
+python3 volume_cli.py deps stop deps_install_20251227_141126_a3f2 --force
+```
+
+输出示例：
+
+```
+============================================================
+✅ 任务已停止
+============================================================
+📋 任务ID: deps_install_20251227_141126_a3f2
+⚠️  使用强制终止 (SIGKILL)
+```
+
+### 4. 实时跟踪日志
 
 ```bash
 tail -f /runpod-volume/.metadata/tasks/deps_install_20251227_141126_a3f2.log
@@ -121,6 +156,7 @@ tail -f /runpod-volume/.metadata/tasks/deps_install_20251227_141126_a3f2.log
 - **running** 🔄：正在运行
 - **completed** ✅：已完成
 - **failed** ❌：失败
+- **stopped** 🛑：已停止
 - **unknown** ❓：未知（进程异常退出）
 
 ## 目录结构
@@ -161,7 +197,20 @@ python3 volume_cli.py deps install --project project-b --async
 python3 volume_cli.py deps status
 ```
 
-### 场景 3：调试安装问题
+### 场景 3：停止运行中的任务
+
+```bash
+# 1. 查看运行中的任务
+python3 volume_cli.py deps status
+
+# 2. 优雅停止任务
+python3 volume_cli.py deps stop deps_install_20251227_141126_a3f2
+
+# 3. 如果优雅停止无效，使用强制停止
+python3 volume_cli.py deps stop deps_install_20251227_141126_a3f2 --force
+```
+
+### 场景 4：调试安装问题
 
 ```bash
 # 1. 启动异步安装
@@ -243,3 +292,23 @@ cd /runpod-volume/.metadata/tasks/
 - **任务管理**：JSON 元数据文件 + 日志文件
 - **进度解析**：结构化日志标记（`[PROGRESS]`、`[SUCCESS]`、`[FAILED]`）
 - **状态检测**：通过 `os.kill(pid, 0)` 检查进程是否存在
+- **uv 加速**：自动检测并使用 uv（Rust 实现的 Python 包管理器），失败时自动降级到 pip
+
+## 性能优化
+
+### uv 加速说明
+
+系统会自动尝试使用 [uv](https://github.com/astral-sh/uv) 替代 pip 进行依赖安装：
+
+- **并行下载**：同时下载多个包，充分利用网络带宽
+- **更快的依赖解析**：Rust 实现，解析速度比 pip 快 10-100 倍
+- **零配置**：完全兼容 pip 参数，无需修改配置
+- **自动降级**：如果 uv 不可用或安装失败，自动回退到 pip
+
+**预期性能提升**：
+
+- 首次安装大型项目：10-100 倍加速
+- 增量安装：5-20 倍加速
+- 小型项目：2-5 倍加速
+
+**首次运行时**，系统会自动安装 uv（如果未安装），后续运行将直接使用。

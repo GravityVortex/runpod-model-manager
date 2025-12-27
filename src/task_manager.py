@@ -190,4 +190,58 @@ class TaskManager:
         # 按开始时间倒序排序
         tasks.sort(key=lambda x: x.get('started_at', ''), reverse=True)
         return tasks
+    
+    def stop_task(self, task_id: str, force: bool = False) -> bool:
+        """
+        停止任务
+        
+        Args:
+            task_id: 任务ID
+            force: 是否强制终止（SIGKILL）
+        
+        Returns:
+            是否成功
+        """
+        metadata_file = self.tasks_dir / f"{task_id}.json"
+        if not metadata_file.exists():
+            raise FileNotFoundError(f"任务不存在: {task_id}")
+        
+        with open(metadata_file, 'r') as f:
+            task_info = json.load(f)
+        
+        if task_info['status'] != 'running':
+            return False
+        
+        pid = task_info['pid']
+        
+        try:
+            # 检查进程是否存在
+            os.kill(pid, 0)
+            
+            # 终止进程
+            import signal
+            if force:
+                os.kill(pid, signal.SIGKILL)  # 强制终止
+            else:
+                os.kill(pid, signal.SIGTERM)  # 优雅终止
+            
+            # 更新状态
+            task_info['status'] = 'stopped'
+            task_info['stopped_at'] = datetime.now().isoformat()
+            
+            with open(metadata_file, 'w') as f:
+                json.dump(task_info, f, indent=2)
+            
+            return True
+        
+        except ProcessLookupError:
+            # 进程不存在
+            task_info['status'] = 'completed'
+            with open(metadata_file, 'w') as f:
+                json.dump(task_info, f, indent=2)
+            return False
+        except PermissionError:
+            raise PermissionError(f"没有权限终止进程 {pid}")
+        except Exception as e:
+            raise Exception(f"终止任务失败: {e}")
 

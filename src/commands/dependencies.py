@@ -7,6 +7,7 @@ import sys
 import os
 from src.projects.loader import get_project
 from src.volume_manager import VolumeManager
+from src.uv_installer import get_pip_command
 from .utils import detect_volume_path
 
 
@@ -20,6 +21,8 @@ def handle_deps(args):
         check_dependencies(args)
     elif args.deps_command == 'status':
         check_task_status(args)
+    elif args.deps_command == 'stop':
+        stop_task(args)
     else:
         print("❌ 未知的 deps 子命令")
         sys.exit(1)
@@ -117,7 +120,7 @@ def install_dependencies(args):
                 
                 # 自动安装根目录依赖
                 root_requirements = os.path.join(os.getcwd(), "requirements.txt")
-                install_cmd = [python_cmd, "-m", "pip", "install", "-r", root_requirements]
+                install_cmd = get_pip_command([python_cmd, "-m", "pip", "install", "-r", root_requirements])
                 
                 print(f"💻 命令: {' '.join(install_cmd)}")
                 install_result = subprocess.run(install_cmd)
@@ -191,7 +194,7 @@ def install_dependencies(args):
             # 自动安装管理工具依赖
             print(f"\n📦 安装管理工具依赖到新的 Python 版本...")
             root_requirements = os.path.join(os.getcwd(), "requirements.txt")
-            install_cmd = [f"python{required_version}", "-m", "pip", "install", "-r", root_requirements]
+            install_cmd = get_pip_command([f"python{required_version}", "-m", "pip", "install", "-r", root_requirements])
             
             print(f"💻 命令: {' '.join(install_cmd)}")
             install_result = subprocess.run(install_cmd)
@@ -520,4 +523,48 @@ def check_task_status(args):
     # 日志文件
     print(f"\n💡 实时日志:")
     print(f"  tail -f {task_info['log_file']}")
+
+
+def stop_task(args):
+    """停止任务"""
+    from src.task_manager import TaskManager
+    
+    volume_path = detect_volume_path()
+    task_manager = TaskManager(volume_path)
+    
+    if not hasattr(args, 'task_id') or not args.task_id:
+        print("❌ 请提供任务ID")
+        print("\n💡 查看所有任务:")
+        print("   python3 volume_cli.py deps status")
+        sys.exit(1)
+    
+    try:
+        force = hasattr(args, 'force') and args.force
+        success = task_manager.stop_task(args.task_id, force=force)
+        
+        if success:
+            print("=" * 60)
+            print("✅ 任务已停止")
+            print("=" * 60)
+            print(f"📋 任务ID: {args.task_id}")
+            if force:
+                print("⚠️  使用强制终止 (SIGKILL)")
+            else:
+                print("✅ 优雅终止 (SIGTERM)")
+        else:
+            print("=" * 60)
+            print("⚠️  任务未运行")
+            print("=" * 60)
+            print(f"📋 任务ID: {args.task_id}")
+            print("💡 任务可能已经完成或停止")
+    
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ 停止任务失败: {e}")
+        sys.exit(1)
 

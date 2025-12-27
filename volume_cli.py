@@ -161,6 +161,21 @@ def main():
         help='任务ID（不提供则列出所有任务）'
     )
     
+    # deps stop
+    deps_stop_parser = deps_subparsers.add_parser(
+        'stop',
+        help='停止任务'
+    )
+    deps_stop_parser.add_argument(
+        'task_id',
+        help='任务ID'
+    )
+    deps_stop_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='强制终止（SIGKILL）'
+    )
+    
     # ==================== models 命令组 ====================
     models_parser = subparsers.add_parser(
         'models',
