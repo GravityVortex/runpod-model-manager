@@ -781,6 +781,7 @@ class VolumeManager:
         # 所有组都安装成功，替换正式目录
         print(f"\n🔄 替换依赖目录...")
         
+        deps_path_backup = None
         if deps_path.exists():
             # 备份旧目录
             deps_path_backup = deps_path.parent / f'{project_name}_old'
@@ -796,7 +797,7 @@ class VolumeManager:
         deps_path_temp.rename(deps_path)
         
         # 清理备份（可选，如果需要保留备份可以注释掉）
-        if deps_path.exists() and deps_path_backup.exists():
+        if deps_path_backup and deps_path_backup.exists():
             print(f"🗑️  清理备份目录...")
             shutil.rmtree(deps_path_backup)
         
