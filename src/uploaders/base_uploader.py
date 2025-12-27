@@ -71,7 +71,7 @@ class BaseUploader(ABC):
             print("\n⚠️  验证失败，但文件可能已传输")
         
         print(f"\n✅ 上传完成！")
-        print(f"目标路径: {self.remote_volume}/models/hub/{self.model_id}/")
+        print(f"目标路径: {self.remote_volume}/models/{self.model_id}/")
         return 0
 
 

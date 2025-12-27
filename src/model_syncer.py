@@ -79,15 +79,8 @@ class ModelSyncer:
         """
         models_dir = f"{self.remote_volume}/models"
         
-        if source == 'modelscope':
-            return f"{models_dir}/hub/{model_id}"
-        elif source == 'huggingface':
-            parts = model_id.split('/')
-            if len(parts) == 2:
-                return f"{models_dir}/models--{parts[0]}--{parts[1]}"
-            return f"{models_dir}/{model_id}"
-        else:
-            raise ValueError(f"不支持的源: {source}")
+        # 直接使用 model_id，不添加 hub/ 等前缀
+        return f"{models_dir}/{model_id}"
     
     def sync_directory(
         self,
