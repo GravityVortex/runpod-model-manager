@@ -31,7 +31,7 @@ groups:
       - soundfile==0.13.1
       - librosa==0.11.0
       - onnxruntime==1.19.2
-      - modelscope==1.10.0
+      - modelscope
       - fastapi==0.121.0
       - uvicorn==0.33.0
       - python-multipart==0.0.20
@@ -39,7 +39,7 @@ groups:
       - datasets==2.14.5
       - pyarrow==12.0.1
       - fastcluster==1.2.6
-      - funasr==1.2.7
+      - funasr
       - runpod
     description: "Standard packages from PyPI"
 
