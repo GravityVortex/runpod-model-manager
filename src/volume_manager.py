@@ -8,6 +8,8 @@ import os
 import json
 import hashlib
 import subprocess
+import shutil
+import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from datetime import datetime
@@ -658,6 +660,27 @@ class VolumeManager:
             print(f"\n🚀 增量安装模式：直接更新正式目录")
             print(f"   变更: {len(added)} 新增, {len(updated)} 更新")
             print(f"   跳过复制步骤，直接安装到正式目录（更快）")
+            
+            # 清理旧版本（针对 updated 的包）
+            if updated:
+                print(f"\n🧹 清理旧版本...")
+                for pkg_spec in updated:
+                    # 提取包名（去掉版本号）
+                    pkg_name = pkg_spec.split('==')[0].split('>=')[0].split('<=')[0].split('<')[0].split('>')[0].strip()
+                    pkg_name_normalized = pkg_name.replace('-', '_').lower()
+                    
+                    # 删除旧的 .dist-info 目录
+                    dist_info_pattern = str(deps_path / f"{pkg_name_normalized}-*.dist-info")
+                    for old_path in glob.glob(dist_info_pattern):
+                        print(f"   🗑️  删除: {Path(old_path).name}")
+                        shutil.rmtree(old_path, ignore_errors=True)
+                    
+                    # 也尝试原始包名（有些包不会转换）
+                    if '-' in pkg_name:
+                        dist_info_pattern_orig = str(deps_path / f"{pkg_name}-*.dist-info")
+                        for old_path in glob.glob(dist_info_pattern_orig):
+                            print(f"   🗑️  删除: {Path(old_path).name}")
+                            shutil.rmtree(old_path, ignore_errors=True)
             
             # 合并新增和更新的包
             to_install = list(added) + list(updated)
