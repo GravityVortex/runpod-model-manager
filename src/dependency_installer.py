@@ -9,7 +9,6 @@ import subprocess
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional
-from .uv_installer import get_pip_command
 
 
 class DependencyInstaller:
@@ -152,8 +151,8 @@ class DependencyInstaller:
             print(f"   ⚠️  跳过依赖检查 (--no-deps)")
         print(f"{'─'*60}")
         
-        # 构建 pip install 命令（优先使用 uv）
-        cmd = get_pip_command(['pip', 'install'])
+        # 构建 pip install 命令
+        cmd = ['pip', 'install']
         
         # 添加包列表
         cmd.extend(packages)
