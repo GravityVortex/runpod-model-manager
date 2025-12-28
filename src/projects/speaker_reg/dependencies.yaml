@@ -25,6 +25,7 @@ groups:
       - pandas==2.0.3
       - openpyxl==3.1.5
       - transformers==4.46.3
+      - huggingface-hub>=0.23.2,<1.0
       - sentencepiece==0.2.0
       - hdbscan==0.8.40
       - umap-learn==0.5.7
