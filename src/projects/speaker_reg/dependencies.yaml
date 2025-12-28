@@ -36,7 +36,7 @@ groups:
       - uvicorn==0.33.0
       - python-multipart==0.0.20
       - addict==2.4.0
-      - datasets==2.14.5
+      - datasets>=3.0.0
       - pyarrow==12.0.1
       - fastcluster==1.2.6
       - funasr
