@@ -7,7 +7,6 @@ import sys
 import os
 from src.projects.loader import get_project
 from src.volume_manager import VolumeManager
-from src.uv_installer import get_pip_command
 from .utils import detect_volume_path
 
 
@@ -120,7 +119,7 @@ def install_dependencies(args):
                 
                 # 自动安装根目录依赖
                 root_requirements = os.path.join(os.getcwd(), "requirements.txt")
-                install_cmd = get_pip_command([python_cmd, "-m", "pip", "install", "-r", root_requirements])
+                install_cmd = [python_cmd, "-m", "pip", "install", "-r", root_requirements]
                 
                 print(f"💻 命令: {' '.join(install_cmd)}")
                 install_result = subprocess.run(install_cmd)
@@ -194,7 +193,7 @@ def install_dependencies(args):
             # 自动安装管理工具依赖
             print(f"\n📦 安装管理工具依赖到新的 Python 版本...")
             root_requirements = os.path.join(os.getcwd(), "requirements.txt")
-            install_cmd = get_pip_command([f"python{required_version}", "-m", "pip", "install", "-r", root_requirements])
+            install_cmd = [f"python{required_version}", "-m", "pip", "install", "-r", root_requirements]
             
             print(f"💻 命令: {' '.join(install_cmd)}")
             install_result = subprocess.run(install_cmd)
