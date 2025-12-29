@@ -41,6 +41,8 @@ groups:
       - pyarrow==12.0.1
       - fastcluster==1.2.6
       - funasr==1.2.7
+      - pyannote-audio
+      - pyannote-core
     description: "Standard packages from PyPI"
 
   # funasr 使用 --no-deps 安装（安全的解决方案）
