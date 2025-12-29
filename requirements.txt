@@ -2,7 +2,7 @@
 # 用于 volume_cli.py 和下载器模块
 
 # ModelScope 下载器
-modelscope>=1.10.0
+modelscope==1.10.0
 
 # HuggingFace 下载器
 huggingface-hub
