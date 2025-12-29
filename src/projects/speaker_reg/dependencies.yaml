@@ -15,48 +15,56 @@ groups:
   standard:
     index_url: null # null 表示使用默认 PyPI 源
     packages:
-      - tqdm
-      - scipy
-      - numpy
-      - scikit-learn
-      - kaldiio
-      - pyyaml
-      - matplotlib
-      - pandas
-      - openpyxl
+      - tqdm==4.67.1
+      - scipy==1.10.1
+      - numpy==1.23.5
+      - scikit-learn==1.1.0
+      - kaldiio==2.18.1
+      - pyyaml==6.0.3
+      - matplotlib==3.7.5
+      - pandas==2.0.3
+      - openpyxl==3.1.5
       - transformers==4.46.3
-      - huggingface-hub>=0.23.2,<1.0
-      - sentencepiece
-      - hdbscan
-      - umap-learn
-      - soundfile
-      - librosa
-      - onnxruntime
-      - modelscope
-      - fastapi
-      - uvicorn
-      - python-multipart
-      - addict
-      - datasets
-      - pyarrow
-      - fastcluster
-      - funasr
+      - sentencepiece==0.2.0
+      - hdbscan==0.8.40
+      - umap-learn==0.5.7
+      - soundfile==0.13.1
+      - librosa==0.11.0
+      - onnxruntime==1.19.2
+      - modelscope==1.10.0
+      - fastapi==0.121.0
+      - uvicorn==0.33.0
+      - python-multipart==0.0.20
+      - addict==2.4.0
+      - datasets==2.14.5
+      - pyarrow==12.0.1
+      - fastcluster==1.2.6
       - runpod
     description: "Standard packages from PyPI"
 
-  # # funasr 使用 --no-deps 安装（安全的解决方案）
-  # funasr:
-  #   index_url: null
-  #   no_deps: true
-  #   packages:
-  #     - funasr==1.2.7
-  #   description: "FunASR installed with --no-deps"
+  # funasr 使用 --no-deps 安装（安全的解决方案）
+  funasr:
+    index_url: null
+    no_deps: true
+    packages:
+      - funasr==1.2.7
+    description: "FunASR installed with --no-deps"
+    # 为什么安全？funasr 的所有依赖都已在 standard 组中显式安装：
+    #   ✅ numpy==1.23.5
+    #   ✅ torch==2.4.1, torchaudio==2.4.1
+    #   ✅ transformers==4.46.3
+    #   ✅ onnxruntime==1.19.2
+    #   ✅ soundfile==0.13.1, librosa==0.11.0
+    #   ✅ kaldiio==2.18.1
+    #   ✅ umap-learn==0.5.7 (替代 umap)
+    #   ✅ hdbscan==0.8.40
+    # 参考：Dockerfile 中也是分步安装，先装基础包再装 funasr
 
 # 安装顺序（某些包需要先安装）
 install_order:
   - pytorch # 先安装 PyTorch
   - standard # 再安装其他包（包括 umap-learn）
-#  - funasr # 最后安装 funasr
+  - funasr # 最后安装 funasr
 
 # 元数据
 metadata:
