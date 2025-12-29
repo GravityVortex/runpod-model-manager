@@ -1,11 +1,5 @@
 # RunPod Model Manager 运行依赖
-# 用于 volume_cli.py 和下载器模块
+# 用于 volume_cli.py 的依赖管理功能
 
-# ModelScope 下载器
-modelscope==1.10.0
-
-# HuggingFace 下载器
-huggingface-hub
-
-# PyYAML (元数据管理 + 依赖配置解析)
+# PyYAML (依赖配置解析)
 pyyaml

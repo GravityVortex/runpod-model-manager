@@ -29,6 +29,31 @@ def handle_models(args):
 
 def download_models(args):
     """下载模型"""
+    # 检查下载器依赖
+    missing = []
+    try:
+        import modelscope
+    except ImportError:
+        missing.append('modelscope')
+    
+    try:
+        import huggingface_hub
+    except ImportError:
+        missing.append('huggingface-hub')
+    
+    if missing:
+        print("=" * 60)
+        print("❌ 缺少模型下载器依赖")
+        print("=" * 60)
+        print(f"\n缺失的包: {', '.join(missing)}")
+        print("\n模型下载功能需要以下依赖:")
+        print("  pip install modelscope huggingface-hub")
+        print("\n💡 提示:")
+        print("  - 如果模型已手动上传，可以使用 'models register' 命令注册")
+        print("  - 业务代码运行时的依赖应在 dependencies.yaml 中配置")
+        print("=" * 60)
+        sys.exit(1)
+    
     print("=" * 60)
     print("📥 模型下载")
     print("=" * 60)
