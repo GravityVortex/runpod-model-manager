@@ -120,135 +120,54 @@ class VenvManager:
         mirror: Optional[str] = None,
         force: bool = False
     ) -> Dict:
-        """
-        从 dependencies.yaml 安装依赖
-        
-        Args:
-            venv_path: venv 路径
-            yaml_config_file: 依赖配置文件路径
-            mirror: PyPI 镜像源（仅用于 index_url 为 null 的组）
-            force: 强制重装
-        
-        Returns:
-            安装结果统计
-        """
+        """从 dependencies.yaml 安装依赖"""
         self._check_uv_installed()
         
-        if not Path(yaml_config_file).exists():
-            raise FileNotFoundError(f"配置文件不存在: {yaml_config_file}")
-        
-        # 加载配置
         with open(yaml_config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
-        
-        groups = config.get('groups', {})
-        install_order = config.get('install_order', list(groups.keys()))
-        
-        print(f"\n{'='*60}")
-        print(f"📦 使用 uv 安装依赖")
-        print(f"{'='*60}")
-        print(f"📝 配置文件: {yaml_config_file}")
-        print(f"🐍 Venv: {venv_path.name}")
-        print(f"📊 依赖组数: {len(install_order)}")
         
         python_bin = venv_path / 'bin' / 'python'
         if not python_bin.exists():
             raise RuntimeError(f"Venv Python 不存在: {python_bin}")
         
-        results = {}
-        total_packages = 0
+        groups = config.get('groups', {})
+        install_order = config.get('install_order', list(groups.keys()))
         
-        for idx, group_name in enumerate(install_order, 1):
-            if group_name not in groups:
-                print(f"\n⚠️  警告: 组 '{group_name}' 不存在，跳过")
+        print(f"\n{'='*60}")
+        print(f"📦 安装依赖: {len(install_order)} 组")
+        print(f"{'='*60}")
+        
+        results = {}
+        for group_name in install_order:
+            group = groups.get(group_name)
+            if not group or not group.get('packages'):
                 continue
             
-            group_config = groups[group_name]
-            packages = group_config.get('packages', [])
-            index_url = group_config.get('index_url')
-            description = group_config.get('description', '')
-            no_deps = group_config.get('no_deps', False)
-            
-            if not packages:
-                print(f"\n⏭️  跳过空组: {group_name}")
-                results[group_name] = True
-                continue
-            
-            total_packages += len(packages)
-            
-            print(f"\n{'─'*60}")
-            print(f"📦 组 [{idx}/{len(install_order)}]: {group_name}")
-            if description:
-                print(f"   {description}")
-            print(f"   包数量: {len(packages)}")
-            if index_url:
-                print(f"   索引 URL: {index_url}")
-            if no_deps:
-                print(f"   ⚠️  跳过依赖检查 (--no-deps)")
-            print(f"{'─'*60}")
-            
-            # 构建 uv pip install 命令
             cmd = ['uv', 'pip', 'install', '--python', str(python_bin)]
+            cmd.extend(group['packages'])
             
-            # 添加包列表
-            cmd.extend(packages)
-            
-            # 添加 --no-deps 选项
-            if no_deps:
+            if group.get('no_deps'):
                 cmd.append('--no-deps')
-            
-            # 添加索引 URL
-            if index_url:
-                cmd.extend(['--index-url', index_url])
+            if group.get('index_url'):
+                cmd.extend(['--index-url', group['index_url']])
             elif mirror:
                 cmd.extend(['--index-url', mirror])
-            
-            # 强制重装
             if force:
                 cmd.append('--reinstall')
             
-            # 打印命令
-            cmd_str = ' '.join(cmd)
-            print(f"\n💻 命令: {cmd_str}")
-            print()
-            
-            # 执行安装
-            import time
-            start_time = time.time()
-            
-            try:
-                result = subprocess.run(cmd, check=False)
-                elapsed_time = int(time.time() - start_time)
-                
-                if result.returncode == 0:
-                    print(f"\n✅ 组 '{group_name}' 安装成功 ({elapsed_time}s)")
-                    results[group_name] = True
-                else:
-                    print(f"\n❌ 组 '{group_name}' 安装失败 (退出码: {result.returncode})")
-                    results[group_name] = False
-            
-            except Exception as e:
-                print(f"\n❌ 组 '{group_name}' 安装异常: {e}")
-                results[group_name] = False
+            print(f"\n📦 {group_name} ({len(group['packages'])} 包)")
+            result = subprocess.run(cmd, check=False)
+            results[group_name] = (result.returncode == 0)
         
-        # 统计
+        success = sum(1 for s in results.values() if s)
         print(f"\n{'='*60}")
-        print(f"📊 安装统计")
+        print(f"✅ 完成: {success}/{len(results)} 组成功")
         print(f"{'='*60}")
-        success_count = sum(1 for s in results.values() if s)
-        total_count = len(results)
-        print(f"✅ 成功: {success_count}/{total_count}")
-        
-        if success_count < total_count:
-            print(f"❌ 失败: {total_count - success_count}")
-            for group_name, success in results.items():
-                if not success:
-                    print(f"  - {group_name}")
         
         return {
-            'total': total_packages,
-            'installed': sum(1 for s in results.values() if s),
-            'failed': sum(1 for s in results.values() if not s),
+            'total': sum(len(groups[g].get('packages', [])) for g in install_order if g in groups),
+            'installed': success,
+            'failed': len(results) - success,
             'groups': results
         }
     

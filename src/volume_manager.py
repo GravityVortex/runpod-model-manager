@@ -13,7 +13,6 @@ import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from datetime import datetime
-from src.dependency_installer import DependencyInstaller
 
 
 class VolumeManager:
@@ -165,70 +164,6 @@ class VolumeManager:
         
         except Exception as e:
             print(f"   ⚠️  修复 ModelScope 版本时出错: {e}")
-    
-    def _hash_dependencies(self, deps: List[str]) -> str:
-        """计算依赖列表的哈希值"""
-        deps_str = '\n'.join(sorted(deps))
-        return hashlib.md5(deps_str.encode()).hexdigest()
-    
-    def check_dependencies_changed(
-        self,
-        project_name: str,
-        new_deps: List[str],
-        python_version: Optional[str] = None
-    ) -> tuple[bool, Set[str], Set[str], Set[str]]:
-        """
-        检查依赖是否变化
-        
-        Args:
-            project_name: 项目名称
-            new_deps: 新的依赖列表
-            python_version: Python 版本（如 '3.10'）
-        
-        Returns:
-            (changed, added, removed, updated)
-            - changed: 是否有变化
-            - added: 新增的依赖（包名级别）
-            - removed: 移除的依赖（包名级别）
-            - updated: 版本更新的依赖
-        """
-        def extract_pkg_name(dep: str) -> str:
-            """提取包名（去除版本号）"""
-            for sep in ['==', '>=', '<=', '>', '<', '!=', '~=']:
-                if sep in dep:
-                    return dep.split(sep)[0].strip()
-            return dep.strip()
-        
-        metadata = self._load_metadata(project_name, python_version)
-        
-        # 完整依赖字符串集合
-        old_deps_full = set(metadata['dependencies'].keys())
-        new_deps_full = set(new_deps)
-        
-        # 包名集合（不含版本）
-        old_pkg_names = {extract_pkg_name(d) for d in old_deps_full}
-        new_pkg_names = {extract_pkg_name(d) for d in new_deps_full}
-        
-        # 纯新增的包（包名不在旧列表中）
-        truly_added = new_pkg_names - old_pkg_names
-        added = {d for d in new_deps_full if extract_pkg_name(d) in truly_added}
-        
-        # 纯删除的包（包名不在新列表中）
-        truly_removed = old_pkg_names - new_pkg_names
-        removed = {d for d in old_deps_full if extract_pkg_name(d) in truly_removed}
-        
-        # 版本更新的包（包名相同，但完整字符串不同）
-        common_pkg_names = old_pkg_names & new_pkg_names
-        updated = set()
-        for pkg_name in common_pkg_names:
-            old_full = next((d for d in old_deps_full if extract_pkg_name(d) == pkg_name), None)
-            new_full = next((d for d in new_deps_full if extract_pkg_name(d) == pkg_name), None)
-            if old_full != new_full:
-                updated.add(new_full)
-        
-        changed = bool(added or removed or updated)
-        
-        return changed, added, removed, updated
     
     def install_dependencies(
         self,

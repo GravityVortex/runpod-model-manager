@@ -3,6 +3,9 @@
 """
 通用依赖安装器
 根据 YAML 配置文件从不同索引源安装依赖
+
+⚠️ DEPRECATED: 此模块已被 VenvManager 替代，保留仅用于向后兼容
+推荐使用: src.venv_manager.VenvManager
 """
 import os
 import subprocess
@@ -12,7 +15,11 @@ from typing import Dict, List, Optional
 
 
 class DependencyInstaller:
-    """依赖安装器 - 支持多索引源安装"""
+    """
+    依赖安装器 - 支持多索引源安装
+    
+    ⚠️ DEPRECATED: 请使用 VenvManager.install_from_yaml() 替代
+    """
     
     def __init__(self, config_file: str):
         """
