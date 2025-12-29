@@ -9,7 +9,7 @@ groups:
     packages:
       - torch==2.4.1
       - torchaudio==2.4.1
-      - torchvision==0.19
+      - torchvision==0.19.1
     description: "PyTorch with CUDA 12.1 support"
 
   # 标准 PyPI 包（从默认源安装）
