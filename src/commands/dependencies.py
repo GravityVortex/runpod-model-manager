@@ -246,16 +246,21 @@ def install_dependencies(args):
     else:
         print(f"✅ Python 版本匹配")
     
-    # 安装依赖（使用配置文件）
+    # 安装依赖（使用 venv + uv）
     try:
+        from src.venv_manager import VenvManager
+        
         if args.force:
             print(f"\n⚠️  使用 --force 参数，将强制重新安装所有依赖")
         
-        print(f"\n📦 使用配置文件安装依赖...")
-        result = manager.install_dependencies_from_config(
-            args.project,
+        # 创建/检测 venv
+        venv_mgr = VenvManager(volume_path)
+        venv_path = venv_mgr.ensure_venv(args.project, required_version)
+        
+        print(f"\n📦 使用 uv 安装依赖到 venv...")
+        result = venv_mgr.install_from_yaml(
+            venv_path,
             project.dependencies_config,
-            python_version=required_version,
             mirror=args.mirror,
             force=args.force
         )
@@ -271,9 +276,14 @@ def install_dependencies(args):
                 status = "✅" if success else "❌"
                 print(f"  {status} {group}")
         
-        print(f"\n📝 使用说明:")
+        print(f"\n📝 使用说明（业务侧 Dockerfile）:")
         print(f"  FROM python:{required_version}")
-        print(f"  ENV PYTHONPATH=/runpod-volume/python-deps/py{required_version}/{args.project}:$PYTHONPATH")
+        print(f"  # 方式 1: 激活 venv（推荐）")
+        print(f"  ENV VIRTUAL_ENV=/runpod-volume/venvs/py{required_version}-{args.project}")
+        print(f"  ENV PATH=\"$VIRTUAL_ENV/bin:$PATH\"")
+        print(f"  ")
+        print(f"  # 方式 2: 直接用 venv 的 python")
+        print(f"  CMD [\"/runpod-volume/venvs/py{required_version}-{args.project}/bin/python\", \"app.py\"]")
         
     except Exception as e:
         print(f"\n❌ 安装失败: {e}")

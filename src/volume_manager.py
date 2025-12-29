@@ -546,7 +546,7 @@ class VolumeManager:
     ) -> Dict:
         """
         使用依赖配置文件 (dependencies.yaml) 安装依赖
-        使用临时目录策略：先安装到临时目录，成功后再替换正式目录
+        委托给 VenvManager（使用 uv + venv）
         
         Args:
             project_name: 项目名称
@@ -558,291 +558,27 @@ class VolumeManager:
         Returns:
             安装结果统计
         """
-        # 按 Python 版本隔离依赖
-        deps_path = self.volume_path / 'python-deps' / f'py{python_version}' / project_name
-        deps_path_temp = self.volume_path / 'python-deps' / f'py{python_version}' / f'{project_name}_tmp'
-        deps_path.parent.mkdir(parents=True, exist_ok=True)
+        # 委托给 VenvManager
+        from src.venv_manager import VenvManager
         
-        print(f"\n{'='*60}")
-        print(f"📦 使用配置文件安装依赖: {config_file}")
-        print(f"{'='*60}")
+        venv_mgr = VenvManager(self.volume_path)
+        venv_path = venv_mgr.ensure_venv(project_name, python_version)
         
-        # 创建依赖安装器
-        installer = DependencyInstaller(config_file)
-        all_packages = installer.get_all_packages()
+        return venv_mgr.install_from_yaml(
+            venv_path,
+            config_file,
+            mirror=mirror,
+            force=force
+        )
+        # 委托给 VenvManager
+        from src.venv_manager import VenvManager
         
-        # 检查依赖是否变化
-        if force:
-            print(f"\n🔄 强制重新安装模式")
-            print(f"   跳过依赖变更检测")
-            changed = True  # 强制视为有变化
-            added = set()
-            removed = set()
-            updated = set()
-        else:
-            print(f"\n🔍 检查依赖变更...")
-            print(f"   Python 版本: {python_version}")
-            print(f"   配置包数量: {len(all_packages)}")
-            
-            changed, added, removed, updated = self.check_dependencies_changed(
-                project_name, 
-                all_packages,
-                python_version
-            )
+        venv_mgr = VenvManager(self.volume_path)
+        venv_path = venv_mgr.ensure_venv(project_name, python_version)
         
-        # 如果依赖未变化且目录已存在，跳过安装
-        if not force and not changed and deps_path.exists():
-            print(f"\n✅ 依赖未变化，跳过重新安装")
-            print(f"   已安装包数: {len(all_packages)}")
-            
-            # 但仍然执行 ModelScope 修复检查
-            if (deps_path / 'modelscope').exists():
-                print(f"\n🛠️  后处理: 检查 ModelScope 版本...")
-                self._fix_modelscope_release_date(deps_path)
-            
-            return {
-                'total': len(all_packages),
-                'installed': 0,
-                'skipped': len(all_packages),
-                'failed': 0,
-                'unchanged': True,
-                'groups': {}
-            }
-        
-        # 有变化或首次安装，执行安装流程
-        is_first_install = not deps_path.exists()
-        
-        if changed:
-            print(f"\n📦 检测到依赖变化:")
-            if added:
-                print(f"   ✚ 新增: {len(added)} 个包")
-                for pkg in list(added)[:5]:
-                    print(f"      - {pkg}")
-                if len(added) > 5:
-                    print(f"      ... 还有 {len(added) - 5} 个")
-            if removed:
-                print(f"   ✖ 移除: {len(removed)} 个包")
-                for pkg in list(removed)[:5]:
-                    print(f"      - {pkg}")
-                if len(removed) > 5:
-                    print(f"      ... 还有 {len(removed) - 5} 个")
-            if updated:
-                print(f"   🔄 版本更新: {len(updated)} 个包")
-                for pkg in list(updated)[:5]:
-                    print(f"      - {pkg}")
-                if len(updated) > 5:
-                    print(f"      ... 还有 {len(updated) - 5} 个")
-        else:
-            print(f"\n📦 首次安装，开始安装所有依赖...")
-        
-        # 清理可能存在的临时目录
-        import shutil
-        if deps_path_temp.exists():
-            print(f"\n🗑️  清理旧的临时目录...")
-            shutil.rmtree(deps_path_temp)
-        
-        # 创建临时目录
-        deps_path_temp.mkdir(parents=True, exist_ok=True)
-        print(f"📂 临时目录: {deps_path_temp}")
-        
-        # 🔥 增量安装策略
-        if removed and not is_first_install:
-            # 有删除的包 → 全部重新安装（避免依赖关系问题）
-            print(f"\n⚠️  检测到包删除，将全部重新安装以确保依赖完整性")
-            results = installer.install(
-                target_dir=str(deps_path_temp),
-                mirror=mirror,
-                dry_run=False
-            )
-        elif (added or updated) and not is_first_install:
-            # 只有新增/更新，没有删除 → 增量安装（直接在正式目录）
-            total_changes = len(added) + len(updated)
-            print(f"\n🚀 增量安装模式：直接更新正式目录")
-            print(f"   变更: {len(added)} 新增, {len(updated)} 更新")
-            print(f"   跳过复制步骤，直接安装到正式目录（更快）")
-            
-            # 清理旧版本（针对 updated 的包）
-            if updated:
-                print(f"\n🧹 清理旧版本...")
-                for pkg_spec in updated:
-                    # 提取包名（去掉版本号）
-                    pkg_name = pkg_spec.split('==')[0].split('>=')[0].split('<=')[0].split('<')[0].split('>')[0].strip()
-                    pkg_name_normalized = pkg_name.replace('-', '_').lower()
-                    
-                    # 删除旧的 .dist-info 目录
-                    dist_info_pattern = str(deps_path / f"{pkg_name_normalized}-*.dist-info")
-                    for old_path in glob.glob(dist_info_pattern):
-                        print(f"   🗑️  删除: {Path(old_path).name}")
-                        shutil.rmtree(old_path, ignore_errors=True)
-                    
-                    # 也尝试原始包名（有些包不会转换）
-                    if '-' in pkg_name:
-                        dist_info_pattern_orig = str(deps_path / f"{pkg_name}-*.dist-info")
-                        for old_path in glob.glob(dist_info_pattern_orig):
-                            print(f"   🗑️  删除: {Path(old_path).name}")
-                            shutil.rmtree(old_path, ignore_errors=True)
-            
-            # 合并新增和更新的包
-            to_install = list(added) + list(updated)
-            groups = installer.config.get('groups', {})
-            install_order = installer.config.get('install_order', list(groups.keys()))
-            
-            # 按组安装/更新包（直接在正式目录）
-            install_success = True
-            for group_name in install_order:
-                if group_name not in groups:
-                    continue
-                
-                group_config = groups[group_name]
-                group_packages = group_config.get('packages', [])
-                index_url = group_config.get('index_url')
-                no_deps = group_config.get('no_deps', False)
-                
-                # 找出这个组中需要安装/更新的包
-                group_to_install = [pkg for pkg in to_install if pkg in group_packages]
-                
-                if not group_to_install:
-                    continue
-                
-                print(f"\n   📦 组: {group_name} ({len(group_to_install)} 个包)")
-                if no_deps:
-                    print(f"      ⚠️  跳过依赖检查 (--no-deps)")
-                
-                import sys
-                cmd = [
-                    sys.executable, '-m', 'pip', 'install',
-                    '--no-cache-dir',
-                    '--target', str(deps_path),  # 直接安装到正式目录
-                    '--upgrade',  # 使用 --upgrade 确保版本更新
-                ]
-                
-                # 添加 --no-deps 选项
-                if no_deps:
-                    cmd.append('--no-deps')
-                
-                # 添加索引源
-                if index_url:
-                    cmd.extend(['--index-url', index_url])
-                elif mirror:
-                    cmd.extend(['-i', mirror])
-                
-                cmd.extend(group_to_install)
-                
-                try:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                    print(f"      ✅ 安装成功: {', '.join(group_to_install)}")
-                except subprocess.CalledProcessError as e:
-                    print(f"      ❌ 安装失败: {e}")
-                    print(f"      {e.stderr}")
-                    install_success = False
-                    break
-            
-            results = {'incremental': install_success}
-            
-            # 增量安装不需要替换目录，直接跳到后处理
-            if results.get('incremental'):
-                # 安装完成后自动修复 ModelScope
-                if (deps_path / 'modelscope').exists():
-                    print(f"\n🛠️  后处理: 修复 ModelScope 版本检测...")
-                    self._fix_modelscope_release_date(deps_path)
-                
-                # 更新元数据
-                all_packages = installer.get_all_packages()
-                metadata = self._load_metadata(project_name, python_version)
-                for pkg in all_packages:
-                    metadata['dependencies'][pkg] = {
-                        'installed': True,
-                        'timestamp': datetime.now().isoformat()
-                    }
-                self._save_metadata(project_name, metadata, python_version)
-                
-                return {
-                    'total': len(all_packages),
-                    'installed': len(added) + len(updated),
-                    'failed': 0,
-                    'incremental': True,
-                    'groups': {}
-                }
-            else:
-                # 增量安装失败
-                print(f"\n{'='*60}")
-                print(f"❌ 增量安装失败")
-                print(f"{'='*60}")
-                
-                return {
-                    'total': len(all_packages),
-                    'installed': 0,
-                    'failed': len(added) + len(updated),
-                    'groups': results
-                }
-        else:
-            # 首次安装 → 完整安装
-            results = installer.install(
-                target_dir=str(deps_path_temp),
-                mirror=mirror,
-                dry_run=False
-            )
-        
-        # 检查完整安装（删除包或首次安装）是否有失败的组
-        if 'incremental' not in results:
-            # 完整安装 - 检查各组结果
-            failed_groups = [name for name, success in results.items() if not success]
-            if failed_groups:
-                print(f"\n{'='*60}")
-                print(f"❌ 安装失败")
-                print(f"{'='*60}")
-                print(f"失败的组: {', '.join(failed_groups)}")
-                print(f"\n临时目录未被删除，可用于调试: {deps_path_temp}")
-                
-                return {
-                    'total': len(all_packages),
-                    'installed': 0,
-                    'failed': len(failed_groups),
-                    'groups': results
-                }
-        
-        # 所有组都安装成功，替换正式目录
-        print(f"\n🔄 替换依赖目录...")
-        
-        deps_path_backup = None
-        if deps_path.exists():
-            # 备份旧目录
-            deps_path_backup = deps_path.parent / f'{project_name}_old'
-            if deps_path_backup.exists():
-                print(f"🗑️  删除旧备份...")
-                shutil.rmtree(deps_path_backup)
-            
-            print(f"📦 备份当前目录 -> {deps_path_backup.name}")
-            deps_path.rename(deps_path_backup)
-        
-        # 将临时目录重命名为正式目录
-        print(f"✅ 应用新安装 -> {deps_path.name}")
-        deps_path_temp.rename(deps_path)
-        
-        # 清理备份（可选，如果需要保留备份可以注释掉）
-        if deps_path_backup and deps_path_backup.exists():
-            print(f"🗑️  清理备份目录...")
-            shutil.rmtree(deps_path_backup)
-        
-        # 安装完成后自动修复 ModelScope
-        if (deps_path / 'modelscope').exists():
-            print(f"\n🛠️  后处理: 修复 ModelScope 版本检测...")
-            self._fix_modelscope_release_date(deps_path)
-        
-        # 更新元数据
-        all_packages = installer.get_all_packages()
-        metadata = self._load_metadata(project_name, python_version)
-        for pkg in all_packages:
-            metadata['dependencies'][pkg] = {
-                'installed': True,
-                'timestamp': datetime.now().isoformat()
-            }
-        self._save_metadata(project_name, metadata, python_version)
-        
-        # 返回完整安装结果统计
-        return {
-            'total': len(all_packages),
-            'installed': sum(1 for s in results.values() if s),
-            'failed': sum(1 for s in results.values() if not s),
-            'groups': results
-        }
+        return venv_mgr.install_from_yaml(
+            venv_path,
+            config_file,
+            mirror=mirror,
+            force=force
+        )

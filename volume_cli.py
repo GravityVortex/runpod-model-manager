@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 # 检查必需的依赖
 def check_dependencies():
     """检查 CLI 工具的必需依赖"""
+    import shutil
+    
     try:
         import yaml
     except ImportError:
@@ -32,6 +34,21 @@ def check_dependencies():
         print("  - 如果你切换了 Python 版本，需要在新版本中重新安装依赖")
         print("  - 每个 Python 版本都需要独立安装依赖包")
         print("\n安装完成后再运行此命令。")
+        print("=" * 60)
+        sys.exit(1)
+    
+    # 检查 uv 是否已安装
+    if not shutil.which('uv'):
+        print("=" * 60)
+        print("⚠️  未检测到 uv 工具")
+        print("=" * 60)
+        print("\nuv 是新一代 Python 包管理工具，速度比 pip 快 10-100 倍")
+        print("\n推荐安装以获得更快的依赖安装速度:")
+        print("  # 方式 1: 官方安装脚本")
+        print("  curl -LsSf https://astral.sh/uv/install.sh | sh")
+        print("\n  # 方式 2: 使用 pip")
+        print("  pip install uv")
+        print("\n如果不安装 uv，将无法使用依赖管理功能。")
         print("=" * 60)
         sys.exit(1)
 

@@ -8,10 +8,11 @@
 
 - ✅ **统一 CLI**：单一入口管理依赖与模型
 - ✅ **增量更新**：依赖按配置变更增量/全量更新；模型按已存在文件跳过
-- ✅ **版本隔离**：依赖安装到 `python-deps/pyX.Y/<project>/`
+- ✅ **版本隔离**：依赖安装到 `venvs/pyX.Y-<project>/`
 - ✅ **自动处理 Python 版本**：`deps install` 会检测当前解释器版本，不匹配时自动切换/尝试安装（需要 root 且依赖 apt）
-- ✅ **独立项目**：每个项目一个目录，清晰管理
+- ✅ **独立项目**：每个项目一个 venv，清晰管理
 - ✅ **多源支持**：ModelScope、HuggingFace
+- ✅ **高速安装**：使用 uv 工具，速度比 pip 快 10-100 倍
 
 ## 目录结构（仓库）
 
@@ -44,11 +45,12 @@ CLI 会自动检测可写的 Volume 挂载点（按顺序尝试）：
 
 ```
 <VOLUME>/
-├── models/                         # 模型缓存目录（ModelScope/HF 都指向这里）
-├── python-deps/
-│   └── py3.10/
-│       └── speaker-diarization/    # pip -t 安装目录（以项目名隔离）
-└── .metadata/                      # 增量更新用的元数据（json）
+├── venvs/                            # 虚拟环境（使用 uv + venv）
+│   └── py3.10-speaker-diarization/   # 每个项目一个 venv
+│       ├── bin/python                # Python 解释器
+│       └── lib/python3.10/site-packages/  # 依赖包
+├── models/                           # 模型缓存目录（ModelScope/HF 都指向这里）
+└── .metadata/                        # 增量更新用的元数据（json）
 ```
 
 ## 🚀 快速开始
@@ -59,7 +61,11 @@ CLI 会自动检测可写的 Volume 挂载点（按顺序尝试）：
 git clone https://github.com/GravityVortex/runpod-model-manager.git
 cd runpod-model-manager
 
-# 安装 CLI 自身依赖（只需要这三个）
+# 安装 uv（新一代包管理工具，速度快 10-100 倍）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# 或使用 pip: pip install uv
+
+# 安装 CLI 自身依赖
 python3 -m pip install -r requirements.txt
 
 # 一键：安装依赖 + 下载模型
@@ -105,11 +111,16 @@ python3 volume_cli.py setup --project speaker-diarization
 
 ### 2) 在业务镜像/Serverless 中使用落盘内容
 
-依赖通过 `pip -t` 安装到 Volume 目录，因此业务镜像侧通常通过 `PYTHONPATH` 引入：
+依赖安装在 venv 中，业务镜像侧通过激活 venv 或直接使用 venv 的 python：
 
 ```dockerfile
-ENV PYTHONPATH=/runpod-volume/python-deps/py3.10/speaker-diarization:$PYTHONPATH
+# 方式 1: 激活 venv（推荐）
+ENV VIRTUAL_ENV=/runpod-volume/venvs/py3.10-speaker-diarization
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV MODELSCOPE_CACHE=/runpod-volume/models
+
+# 方式 2: 直接用 venv 的 python
+CMD ["/runpod-volume/venvs/py3.10-speaker-diarization/bin/python", "app.py"]
 ```
 
 模型下载时显式使用 `<VOLUME>/models` 作为 `cache_dir`；运行时也建议把相关缓存变量指向同一路径（至少 `MODELSCOPE_CACHE`）。
@@ -211,6 +222,7 @@ class ProjectLoader:
 ## 注意事项（按代码行为）
 
 - `deps install` 会要求当前解释器版本等于项目的 `python_version`；不匹配时会优先尝试调用 `pythonX.Y` 重新执行，否则尝试 `apt-get install pythonX.Y-*`（需要 root 且依赖系统源）。
+- 依赖使用 uv 安装到独立的 venv 中，业务侧通过激活 venv 或直接使用 venv 的 python 运行。
 - 模型默认下载到 `<VOLUME>/models/`，目录结构由上游库决定（ModelScope 通常在 `models/hub/<model_id>`，HuggingFace 通常在 `models/models--org--repo`）。
 - `clean --models` 不会删除真实模型文件（模型可能被多个项目共享），只清理元数据记录；删除真实模型请自行处理 `models/` 目录。
 
@@ -219,11 +231,13 @@ class ProjectLoader:
 ```
 /runpod-volume/ 或 /workspace/
 ├── .metadata/                    # 元数据（增量追踪）
-├── python-deps/                  # Python 依赖（按版本隔离）
-│   ├── py3.10/
-│   │   └── speaker-diarization/
-│   └── py3.11/
-│       └── text-generation/
+├── venvs/                        # 虚拟环境（按 Python 版本 + 项目隔离）
+│   ├── py3.10-speaker-diarization/
+│   │   ├── bin/python
+│   │   └── lib/python3.10/site-packages/
+│   └── py3.11-text-generation/
+│       ├── bin/python
+│       └── lib/python3.11/site-packages/
 └── models/                       # 模型（所有项目共享）
     └── hub/
 ```
