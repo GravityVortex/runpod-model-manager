@@ -9,6 +9,7 @@ groups:
     packages:
       - torch==2.4.1
       - torchaudio==2.4.1
+      - torchvision==0.19
     description: "PyTorch with CUDA 12.1 support"
 
   # 标准 PyPI 包（从默认源安装）
@@ -39,32 +40,32 @@ groups:
       - datasets==2.14.5
       - pyarrow==12.0.1
       - fastcluster==1.2.6
-      - runpod
+      - funasr==1.2.7
     description: "Standard packages from PyPI"
 
   # funasr 使用 --no-deps 安装（安全的解决方案）
-  funasr:
-    index_url: null
-    no_deps: true
-    packages:
-      - funasr==1.2.7
-    description: "FunASR installed with --no-deps"
-    # 为什么安全？funasr 的所有依赖都已在 standard 组中显式安装：
-    #   ✅ numpy==1.23.5
-    #   ✅ torch==2.4.1, torchaudio==2.4.1
-    #   ✅ transformers==4.46.3
-    #   ✅ onnxruntime==1.19.2
-    #   ✅ soundfile==0.13.1, librosa==0.11.0
-    #   ✅ kaldiio==2.18.1
-    #   ✅ umap-learn==0.5.7 (替代 umap)
-    #   ✅ hdbscan==0.8.40
-    # 参考：Dockerfile 中也是分步安装，先装基础包再装 funasr
+  # funasr:
+  #   index_url: null
+  #   no_deps: true
+  #   packages:
+  #     - funasr==1.2.7
+  #   description: "FunASR installed with --no-deps"
+  # 为什么安全？funasr 的所有依赖都已在 standard 组中显式安装：
+  #   ✅ numpy==1.23.5
+  #   ✅ torch==2.4.1, torchaudio==2.4.1
+  #   ✅ transformers==4.46.3
+  #   ✅ onnxruntime==1.19.2
+  #   ✅ soundfile==0.13.1, librosa==0.11.0
+  #   ✅ kaldiio==2.18.1
+  #   ✅ umap-learn==0.5.7 (替代 umap)
+  #   ✅ hdbscan==0.8.40
+  # 参考：Dockerfile 中也是分步安装，先装基础包再装 funasr
 
 # 安装顺序（某些包需要先安装）
 install_order:
   - pytorch # 先安装 PyTorch
   - standard # 再安装其他包（包括 umap-learn）
-  - funasr # 最后安装 funasr
+  # - funasr # 最后安装 funasr
 
 # 元数据
 metadata:
