@@ -152,26 +152,25 @@ class ModelSyncer:
                     f'{self.remote_host}:{target_path}/'
                 ]
         else:
+            # 先创建目标目录
+            mkdir_target_cmd = self._build_ssh_cmd(['ssh', '-p', self.ssh_port, '-o', 'StrictHostKeyChecking=no',
+                                                     self.remote_host, f'mkdir -p {target_path}'])
+            subprocess.run(mkdir_target_cmd, capture_output=True)
+            
+            # scp 上传目录内容（使用 /* 通配符）
             if self.ssh_password:
                 cmd = [
                     'sshpass', '-p', self.ssh_password,
                     'scp', '-P', self.ssh_port, '-o', 'StrictHostKeyChecking=no', '-r',
-                    str(local_dir),
-                    f'{self.remote_host}:{parent_dir}/'
+                    f'{local_dir}/*',
+                    f'{self.remote_host}:{target_path}/'
                 ]
             else:
                 cmd = [
                     'scp', '-P', self.ssh_port, '-o', 'StrictHostKeyChecking=no', '-r',
-                    str(local_dir),
-                    f'{self.remote_host}:{parent_dir}/'
+                    f'{local_dir}/*',
+                    f'{self.remote_host}:{target_path}/'
                 ]
-            # scp 会创建目录名，需要重命名
-            final_name = Path(target_path).name
-            if local_dir.name != final_name:
-                rename_cmd = self._build_ssh_cmd(['ssh', '-p', self.ssh_port, '-o', 'StrictHostKeyChecking=no',
-                                                  self.remote_host, 
-                                                  f'mv {parent_dir}/{local_dir.name} {target_path}'])
-                subprocess.run(rename_cmd, capture_output=True)
         
         try:
             subprocess.run(cmd, check=True)

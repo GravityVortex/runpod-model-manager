@@ -7,6 +7,7 @@ from .base import BaseProject
 
 # 导入各项目配置
 from .speaker_reg import SpeakerDiarizationProject
+from .v_a_processing import VAProcessingProject
 
 
 class ProjectLoader:
@@ -15,6 +16,7 @@ class ProjectLoader:
     # 注册所有启用的项目
     PROJECTS = [
         SpeakerDiarizationProject(),  # 说话人分割（包含你业务项目需要的所有模型）
+        VAProcessingProject(),  # V-A Processing 项目
     ]
     
     @classmethod
