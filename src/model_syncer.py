@@ -152,28 +152,40 @@ class ModelSyncer:
                     f'{self.remote_host}:{target_path}/'
                 ]
         else:
-            # 先创建目标目录
-            mkdir_target_cmd = self._build_ssh_cmd(['ssh', '-p', self.ssh_port, '-o', 'StrictHostKeyChecking=no',
-                                                     self.remote_host, f'mkdir -p {target_path}'])
-            subprocess.run(mkdir_target_cmd, capture_output=True)
+            # scp 上传整个目录到父目录
+            parent_path = str(Path(target_path).parent)
+            dir_name = Path(target_path).name
             
-            # scp 上传目录内容（使用 /* 通配符）
             if self.ssh_password:
                 cmd = [
                     'sshpass', '-p', self.ssh_password,
                     'scp', '-P', self.ssh_port, '-o', 'StrictHostKeyChecking=no', '-r',
-                    f'{local_dir}/*',
-                    f'{self.remote_host}:{target_path}/'
+                    str(local_dir),
+                    f'{self.remote_host}:{parent_path}/'
                 ]
             else:
                 cmd = [
                     'scp', '-P', self.ssh_port, '-o', 'StrictHostKeyChecking=no', '-r',
-                    f'{local_dir}/*',
-                    f'{self.remote_host}:{target_path}/'
+                    str(local_dir),
+                    f'{self.remote_host}:{parent_path}/'
                 ]
+            
+            # 如果目录名不匹配，需要重命名
+            if local_dir.name != dir_name:
+                rename_needed = True
+            else:
+                rename_needed = False
         
         try:
             subprocess.run(cmd, check=True)
+            
+            # 如果需要重命名
+            if not self.use_rsync and rename_needed:
+                old_path = f"{parent_path}/{local_dir.name}"
+                rename_cmd = self._build_ssh_cmd(['ssh', '-p', self.ssh_port, '-o', 'StrictHostKeyChecking=no',
+                                                   self.remote_host, f'mv {old_path} {target_path}'])
+                subprocess.run(rename_cmd, check=True, capture_output=True)
+            
             print(f"✅ 传输完成")
             return True
         except subprocess.CalledProcessError as e:

@@ -1,0 +1,53 @@
+# 依赖配置文件
+# 支持从不同索引源安装不同的依赖包
+
+# 依赖组（按安装源分组）
+groups:
+  # PyTorch 相关包（需要从 PyTorch 官方索引安装）
+  pytorch:
+    index_url: "https://download.pytorch.org/whl/cu128"
+    packages:
+      - torch==2.8.0
+      - torchaudio==2.8.0
+    description: "PyTorch with CUDA 12.1 support"
+
+  # 标准 PyPI 包（从默认源安装）
+  standard:
+    index_url: null # null 表示使用默认 PyPI 源
+    packages:
+      - vllm==0.10.2
+      - descript-audiotools==0.7.2
+      - matplotlib==3.8.2
+      - omegaconf==2.3.0
+      - sentencepiece==0.2.1
+      - librosa==0.11.0
+      - gradio==5.49.1
+      - ninja==1.13.0
+      - modelscope==1.32.0
+      - munch==4.0.0
+      - PyYAML==6.0.2
+      - fastapi==0.121.2
+      - python-multipart==0.0.20
+      - uvicorn==0.38.0
+    description: "Standard packages from PyPI"
+
+  # 平台相关包
+  platform_specific:
+    index_url: null
+    packages:
+      - WeTextProcessing==1.0.4.1; platform_machine != "Darwin"
+      - wetext; platform_system == "Darwin"
+    description: "Platform-specific text processing packages"
+
+# 安装顺序（某些包需要先安装）
+install_order:
+  - pytorch # 先安装 PyTorch
+  - standard # 再安装其他包
+  - platform_specific # 最后安装平台相关包
+
+# 元数据
+metadata:
+  project: tts
+  python_version: "3.10"
+  created: "2025-01-03"
+  description: "TTS project dependencies"

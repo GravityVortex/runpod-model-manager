@@ -57,7 +57,7 @@ class BaseUploader(ABC):
             local_path=self.local_models_path,
             model_id=self.model_id,
             source=self.source,
-            force=False
+            force=True  # 强制覆盖
         )
         
         if not success:

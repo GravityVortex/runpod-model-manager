@@ -8,6 +8,7 @@ from .base import BaseProject
 # 导入各项目配置
 from .speaker_reg import SpeakerDiarizationProject
 from .v_a_processing import VAProcessingProject
+from .tts import TTSProject
 
 
 class ProjectLoader:
@@ -17,6 +18,7 @@ class ProjectLoader:
     PROJECTS = [
         SpeakerDiarizationProject(),  # 说话人分割（包含你业务项目需要的所有模型）
         VAProcessingProject(),  # V-A Processing 项目
+        TTSProject(),  # TTS 项目
     ]
     
     @classmethod
