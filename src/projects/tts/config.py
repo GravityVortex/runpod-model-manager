@@ -31,7 +31,7 @@ class TTSProject(BaseProject):
     @property
     def upload_remote_host(self):
         """上传目标 SSH 连接"""
-        return 'root@69.30.85.125:22147'
+        return 'root@69.30.85.125:22068'
     
     @property
     def upload_model_id(self):
@@ -44,4 +44,5 @@ class TTSProject(BaseProject):
         print(f"📦 项目: {self.name}")
         print(f"{'='*60}")
         print("  ℹ️  该项目无需下载模型，仅支持本地上传")
+
 

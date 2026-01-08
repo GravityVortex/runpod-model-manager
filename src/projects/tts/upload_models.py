@@ -21,7 +21,7 @@ class TTSUploader(BaseUploader):
     
     @property
     def remote_host(self):
-        return 'root@69.30.85.125:22147'
+        return 'root@69.30.85.125:22068'
     
     @property
     def model_id(self):
@@ -31,4 +31,5 @@ class TTSUploader(BaseUploader):
 if __name__ == '__main__':
     uploader = TTSUploader()
     exit(uploader.main())
+
 
